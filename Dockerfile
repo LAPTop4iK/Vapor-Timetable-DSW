@@ -1,27 +1,26 @@
-# ===== Этап сборки =====
+# -------- Stage 1: build --------
 FROM swift:6.0 as build
-
 WORKDIR /build
 
-COPY ./Package.* ./
+# копим манифесты отдельно чтобы кэшировалось resolve
+COPY Package.* ./
 RUN swift package resolve
 
+# копим весь проект и собираем
 COPY . .
-RUN swift build -c release --static-swift-stdlib
+# ВАЖНО: без --static-swift-stdlib
+RUN swift build -c release
 
-# ===== Финальный образ =====
-# ИЗМЕНЕНИЕ: Ubuntu 24.04 вместо 22.04
-FROM ubuntu:24.04
+# -------- Stage 2: runtime --------
+# slim = рантайм Swift без компилятора, но с Foundation/tzdata/etc.
+FROM swift:6.0-slim
 
-RUN apt-get update -y \
-    && apt-get install -y \
-       ca-certificates \
-       libssl3 \
-    && rm -rf /var/lib/apt/lists/*
-
+# создаём юзера (как раньше)
 RUN useradd --user-group --create-home --system --skel /dev/null --home-dir /app vapor
 
 WORKDIR /app
+
+# копируем только релизные бинарники и ресурсы
 COPY --from=build --chown=vapor:vapor /build/.build/release /app
 
 USER vapor:vapor
