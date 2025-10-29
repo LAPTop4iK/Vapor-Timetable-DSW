@@ -72,29 +72,19 @@ struct SyncRunner {
         }
 
         // Initialize scraping services
-        let dswClient = VaporDSWClient(client: httpClient, logger: logger)
-        let parser = SwiftSoupScheduleParser()
-        let groupSearchParser = SwiftSoupGroupSearchParser()
+        let dswClient = VaporDSWClient(client: httpClient)
+        let parser = SwiftSoupScheduleParser(logger: logger)
 
-        let groupSearchService = GroupSearchService(
-            client: dswClient,
-            parser: groupSearchParser,
-            logger: logger
-        )
+        let groupSearchService = GroupSearchService(client: httpClient)
 
         let teacherDetailsService = TeacherDetailsService(
             client: dswClient,
-            parser: parser,
-            logger: logger
+            parser: parser
         )
 
         let groupScheduleService = GroupScheduleService(
             client: dswClient,
-            parser: parser,
-            from: defaultFrom,
-            to: defaultTo,
-            intervalType: intervalType,
-            logger: logger
+            parser: parser
         )
 
         // Start sync
@@ -131,7 +121,13 @@ struct SyncRunner {
 
                 do {
                     // Fetch group schedule
-                    let schedule = try await groupScheduleService.fetch(groupId: group.groupId)
+                    let scheduleResponse = try await groupScheduleService.fetchSchedule(
+                        groupId: group.groupId,
+                        from: defaultFrom,
+                        to: defaultTo,
+                        intervalType: intervalType
+                    )
+                    let schedule = scheduleResponse.groupSchedule
 
                     // Extract unique teacher IDs from schedule
                     let teacherIds = Set(schedule.compactMap(\.teacherId))
@@ -145,6 +141,7 @@ struct SyncRunner {
                             do {
                                 let card = try await teacherDetailsService.fetchTeacherCard(
                                     teacherId: teacherId,
+                                    fallbackName: nil,
                                     from: defaultFrom,
                                     to: defaultTo,
                                     intervalType: intervalType

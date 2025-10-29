@@ -10,3 +10,10 @@ db.sqlite
 .env.*
 !.env.example
 default.profraw
+
+# Secrets - NEVER commit these!
+*service-account*.json
+firestore-*.json
+secrets/
+*.pem
+*.key

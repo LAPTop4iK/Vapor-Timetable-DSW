@@ -1,0 +1,31 @@
+# docker-compose.local.yml
+# Extended configuration for running sync locally on VPS
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.local.yml up
+
+version: '3.8'
+
+services:
+  # Sync runner service (for cron)
+  dsw-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile.sync
+    container_name: dsw-sync
+    environment:
+      # Firestore configuration
+      - FIRESTORE_PROJECT_ID=${FIRESTORE_PROJECT_ID}
+      - FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json
+
+      # Sync configuration (same as main app)
+      - DSW_DEFAULT_FROM=${DSW_DEFAULT_FROM:-2025-09-06}
+      - DSW_DEFAULT_TO=${DSW_DEFAULT_TO:-2026-02-08}
+      - DSW_DEFAULT_INTERVAL=${DSW_DEFAULT_INTERVAL:-semester}
+
+    volumes:
+      # Mount Firestore service account credentials
+      - ${FIRESTORE_CREDENTIALS_HOST_PATH}:/run/secrets/firestore-service-account.json:ro
+
+    # This service is NOT started by default with docker-compose up
+    # It's meant to be run manually or by cron using: docker-compose run --rm dsw-sync
+    profiles:
+      - manual
