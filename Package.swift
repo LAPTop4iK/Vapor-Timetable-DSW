@@ -14,20 +14,42 @@ let package = Package(
         .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.7.4")
     ],
     targets: [
-        .executableTarget(
-            name: "DswAggregator",
+        // Shared library with common code (models, services, parsers, etc.)
+        .target(
+            name: "DswCore",
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 "SwiftSoup"
             ],
+            path: "Sources/DswAggregator",
+            swiftSettings: swiftSettings
+        ),
+        // Main API server
+        .executableTarget(
+            name: "DswAggregator",
+            dependencies: [
+                "DswCore",
+                .product(name: "Vapor", package: "vapor"),
+            ],
+            path: "Sources/App",
+            swiftSettings: swiftSettings
+        ),
+        // Sync runner for Firestore data preloading
+        .executableTarget(
+            name: "SyncRunner",
+            dependencies: [
+                "DswCore",
+                .product(name: "Vapor", package: "vapor"),
+            ],
+            path: "Sources/SyncRunner",
             swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "DswAggregatorTests",
             dependencies: [
-                .target(name: "DswAggregator"),
+                "DswCore",
                 .product(name: "VaporTesting", package: "vapor"),
             ],
             swiftSettings: swiftSettings

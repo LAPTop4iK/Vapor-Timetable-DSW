@@ -21,6 +21,7 @@ actor InMemoryCacheStore {
     private var groupSearchCache: [GroupSearchCacheKey: CacheEntry<[GroupInfo]>] = [:]
     private var aggregateCache: [AggregateCacheKey: CacheEntry<AggregateResponse>] = [:]
     private var teacherCache: [TeacherCacheKey: CacheEntry<TeacherCard>] = [:]
+    private var dailyScheduleCache: [DailyScheduleCacheKey: CacheEntry<GroupScheduleResponse>] = [:]
 
     // MARK: - expiry helpers (как было)
 
@@ -135,6 +136,27 @@ actor InMemoryCacheStore {
         teacherCache[key] = CacheEntry(value: value, expiresAt: expires)
     }
 
+    // MARK: - Daily Schedule (60 seconds, для "живого" /schedule)
+
+    func getDailySchedule(for key: DailyScheduleCacheKey) -> GroupScheduleResponse? {
+        if let entry = dailyScheduleCache[key], !entry.isExpired {
+            return entry.value
+        }
+        dailyScheduleCache.removeValue(forKey: key)
+        return nil
+    }
+
+    func setDailySchedule(_ value: GroupScheduleResponse,
+                          for key: DailyScheduleCacheKey) {
+        let now = Date()
+        let expires = makeExpiry(
+            now: now,
+            ttlSeconds: 60, // 60 seconds TTL
+            resetAt8am: false
+        )
+        dailyScheduleCache[key] = CacheEntry(value: value, expiresAt: expires)
+    }
+
     // MARK: - Stats / memory approx
 
     /// Очень грубая оценка объёма кэша в байтах.
@@ -163,12 +185,16 @@ actor InMemoryCacheStore {
         for entry in teacherCache.values where !entry.isExpired {
             totalBytes += sizeOf(entry.value)
         }
+        for entry in dailyScheduleCache.values where !entry.isExpired {
+            totalBytes += sizeOf(entry.value)
+        }
 
         return CacheStats(
             groupScheduleCount: groupScheduleCache.values.filter { !$0.isExpired }.count,
             groupSearchCount:   groupSearchCache.values.filter { !$0.isExpired }.count,
             aggregateCount:     aggregateCache.values.filter { !$0.isExpired }.count,
             teacherCount:       teacherCache.values.filter { !$0.isExpired }.count,
+            dailyScheduleCount: dailyScheduleCache.values.filter { !$0.isExpired }.count,
             approxTotalBytes:   totalBytes
         )
     }

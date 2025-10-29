@@ -13,6 +13,7 @@ public struct CacheStats: Sendable {
     public let groupSearchCount: Int
     public let aggregateCount: Int
     public let teacherCount: Int
+    public let dailyScheduleCount: Int
 
     /// примерная оценка занимаемой памяти в байтах
     public let approxTotalBytes: Int

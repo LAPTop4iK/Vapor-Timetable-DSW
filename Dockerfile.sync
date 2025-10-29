@@ -1,0 +1,31 @@
+# -------- Stage 1: build SyncRunner --------
+FROM swift:6.0 as build
+WORKDIR /build
+
+# Copy package manifest
+COPY Package.* ./
+RUN swift package resolve
+
+# Copy source code
+COPY . .
+
+# Build SyncRunner executable
+RUN swift build -c release --product SyncRunner
+
+# -------- Stage 2: runtime --------
+FROM swift:6.0-slim
+
+# Create vapor user
+RUN useradd --user-group --create-home --system --skel /dev/null --home-dir /app vapor
+
+WORKDIR /app
+
+# Copy built SyncRunner binary from build stage
+COPY --from=build --chown=vapor:vapor /build/.build/release/SyncRunner /app/
+
+# Create log directory
+RUN mkdir -p /var/log && chown -R vapor:vapor /var/log
+
+USER vapor:vapor
+
+ENTRYPOINT ["./SyncRunner"]
