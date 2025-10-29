@@ -36,3 +36,11 @@ struct TeacherCacheKey: Hashable, Sendable {
     let to: String
     let intervalRaw: Int
 }
+
+/// Daily schedule cache: кеш для "живого" /schedule эндпойнта (один день)
+/// Используется для предотвращения множественных запросов к университетскому сайту
+/// за одну и ту же дату
+struct DailyScheduleCacheKey: Hashable, Sendable {
+    let groupId: Int
+    let date: String // YYYY-MM-DD
+}

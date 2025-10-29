@@ -1,0 +1,18 @@
+# DSW Timetable Sync Cron Job
+#
+# Runs sync twice a day at 3:00 AM and 3:00 PM (Warsaw time)
+#
+# Installation:
+#   sudo cp dsw-sync.cron /etc/cron.d/dsw-sync
+#   sudo chmod 644 /etc/cron.d/dsw-sync
+#   sudo systemctl restart cron
+#
+
+# Run at 3:00 AM and 3:00 PM every day
+0 3,15 * * * root /usr/local/bin/dsw-sync.sh >> /var/log/dsw-sync-cron.log 2>&1
+
+# Alternative: Run every 12 hours
+# 0 */12 * * * root /usr/local/bin/dsw-sync.sh >> /var/log/dsw-sync-cron.log 2>&1
+
+# For testing: Run every 5 minutes (uncomment for testing only!)
+# */5 * * * * root /usr/local/bin/dsw-sync.sh >> /var/log/dsw-sync-cron.log 2>&1

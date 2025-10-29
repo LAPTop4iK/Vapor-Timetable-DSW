@@ -3,14 +3,37 @@ import Vapor
 /// DI-контейнер приложения.
 /// Хранится один экземпляр на всё приложение.
 /// unsafe? Нет: мы используем только неизменяемые ссылки + actor для кэша.
-import Vapor
 final class DIContainer: @unchecked Sendable {
     let appConfig: AppConfig
     let cacheStore: InMemoryCacheStore
-    
+    let firestoreService: FirestoreService?
+
     init(app: Application) {
-        self.appConfig = AppConfig()
+        self.appConfig = AppConfig(from: app.environment)
         self.cacheStore = InMemoryCacheStore()
+
+        // Initialize Firestore service if enabled
+        if appConfig.isFirestoreEnabled,
+           let projectId = appConfig.firestoreProjectId,
+           let credentialsPath = appConfig.firestoreCredentialsPath {
+            do {
+                self.firestoreService = try FirestoreService(
+                    projectId: projectId,
+                    credentialsPath: credentialsPath,
+                    client: app.http.client.shared,
+                    logger: app.logger
+                )
+                app.logger.info("Firestore service initialized in \(appConfig.backendMode.rawValue) mode")
+            } catch {
+                app.logger.error("Failed to initialize Firestore service: \(error)")
+                self.firestoreService = nil
+            }
+        } else {
+            self.firestoreService = nil
+            if appConfig.backendMode == .cached {
+                app.logger.warning("Backend mode is 'cached' but Firestore is not configured")
+            }
+        }
     }
     
     // фабрики сервисов (как было)

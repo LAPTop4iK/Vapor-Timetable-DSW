@@ -1,0 +1,88 @@
+services:
+  vapor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vapor
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      # ----- base runtime mode -----
+      - ENV=production
+
+      # Default time window if client doesn't send ?from=?to&type=
+      - DSW_DEFAULT_FROM=2025-09-06
+      - DSW_DEFAULT_TO=2026-02-08
+      - DSW_DEFAULT_INTERVAL=semester   # allowed: week / month / semester
+
+      # Mock mode: 1 = return mock data instead of scraping live
+      - DSW_ENABLE_MOCK=0
+
+      # Data source mode:
+      # live   = current behavior (scrape university site on request)
+      # cached = Firestore-based (read from preloaded data)
+      - DSW_BACKEND_MODE=live
+
+      # ----- in-memory cache TTLs (seconds) -----
+      # /api/groups/:id/schedule (daily cache for live mode)
+      - DSW_TTL_SCHEDULE_SECS=60        # 60 seconds
+      # /groups/search
+      - DSW_TTL_SEARCH_SECS=259200      # 3 days = 3*24*60*60
+      # /api/groups/:id/aggregate and teacher cards
+      - DSW_TTL_AGGREGATE_SECS=18000    # 5 hours = 5*60*60
+      - DSW_TTL_TEACHER_SECS=18000      # 5 hours
+
+      # ----- Firestore config (used when DSW_BACKEND_MODE=cached) -----
+      - FIRESTORE_PROJECT_ID=${FIRESTORE_PROJECT_ID:-dsw-timetable-prod}
+      - FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json
+
+      # ----- feature flags (server-driven) -----
+      - DSW_FEATURE_FLAGS_JSON={"show_ads":true,"show_debug_menu":false}
+      - DSW_FEATURE_FLAGS_VERSION="1.0.1"
+
+      # ----- feature parameters (typed JSON) -----
+      - DSW_FEATURE_PARAMS_JSON={"premium_trial_duration":86400}
+      - DSW_FEATURE_PARAMS_VERSION="1.0.1"
+
+    # Mount Firestore credentials when in cached mode
+    volumes:
+      - /srv/secrets/firestore-service-account.json:/run/secrets/firestore-service-account.json:ro
+
+  # SyncRunner: Firestore data preloading service
+  # NOTE: This container is NOT started automatically. It's run via cron or manually.
+  sync-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.sync
+    container_name: dsw-sync-runner
+    restart: "no"  # Don't auto-restart; run on-demand via cron
+    environment:
+      # Firestore configuration
+      - FIRESTORE_PROJECT_ID=${FIRESTORE_PROJECT_ID:-dsw-timetable-prod}
+      - FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json
+
+      # Default data range for sync
+      - DSW_DEFAULT_FROM=2025-09-06
+      - DSW_DEFAULT_TO=2026-02-08
+      - DSW_DEFAULT_INTERVAL=semester
+
+    volumes:
+      # Mount Firestore credentials
+      - /srv/secrets/firestore-service-account.json:/run/secrets/firestore-service-account.json:ro
+      # Mount logs directory
+      - ./logs:/var/log
+
+  nginx:
+    image: nginx:stable
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - vapor
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - /var/www/html:/var/www/html:ro
