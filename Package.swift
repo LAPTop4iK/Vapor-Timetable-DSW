@@ -11,7 +11,9 @@ let package = Package(
         .package(url: "https://github.com/vapor/vapor.git", from: "4.115.0"),
         // 🔵 Non-blocking, event-driven networking for Swift. Used for custom executors
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
-        .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.7.4")
+        .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.7.4"),
+        // 🔐 JWT for Google Service Account authentication
+        .package(url: "https://github.com/vapor/jwt-kit.git", from: "5.1.1")
     ],
     targets: [
         .executableTarget(
@@ -20,6 +22,18 @@ let package = Package(
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "JWTKit", package: "jwt-kit"),
+                "SwiftSoup"
+            ],
+            swiftSettings: swiftSettings
+        ),
+        .executableTarget(
+            name: "SyncRunner",
+            dependencies: [
+                .product(name: "Vapor", package: "vapor"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "JWTKit", package: "jwt-kit"),
                 "SwiftSoup"
             ],
             swiftSettings: swiftSettings
