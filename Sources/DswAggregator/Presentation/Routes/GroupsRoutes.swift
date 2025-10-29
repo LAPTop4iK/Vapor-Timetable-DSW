@@ -24,6 +24,7 @@ struct GroupsRoutes: RouteCollection {
             let interval = IntervalType(rawValue: tRaw) ?? config.defaultInterval
 
             let response: AggregateResponse
+
             if config.isMockEnabled {
                 response = MockFactory.makeAggregate(
                     groupId: gid,
@@ -31,7 +32,19 @@ struct GroupsRoutes: RouteCollection {
                     to: to,
                     intervalType: interval
                 )
+            } else if config.backendMode == .cached {
+                // Read from Firestore
+                guard let reader = req.di.firestoreReader else {
+                    throw Abort(.serviceUnavailable, reason: "Firestore not configured")
+                }
+
+                guard let firestoreData = try await reader.getGroupAggregate(groupId: gid) else {
+                    throw Abort(.notFound, reason: "Group \(gid) not found in Firestore")
+                }
+
+                response = firestoreData
             } else {
+                // Live mode: scrape university site
                 let service = req.di.makeCachedAggregationService(req: req)
                 response = try await service.aggregate(
                     groupId: gid,
@@ -54,9 +67,29 @@ struct GroupsRoutes: RouteCollection {
             let query = (try? req.query.get(String.self, at: "q")) ?? "sem"
 
             let result: [GroupInfo]
+
             if config.isMockEnabled {
                 result = MockFactory.makeGroups()
+            } else if config.backendMode == .cached {
+                // Read from Firestore
+                guard let reader = req.di.firestoreReader else {
+                    throw Abort(.serviceUnavailable, reason: "Firestore not configured")
+                }
+
+                guard let allGroups = try await reader.getGroupsList() else {
+                    throw Abort(.notFound, reason: "Groups list not found in Firestore")
+                }
+
+                // Filter by query (case-insensitive)
+                let lowercaseQuery = query.lowercased()
+                result = allGroups.filter { group in
+                    group.name.lowercased().contains(lowercaseQuery) ||
+                    group.code.lowercased().contains(lowercaseQuery) ||
+                    group.program.lowercased().contains(lowercaseQuery) ||
+                    group.faculty.lowercased().contains(lowercaseQuery)
+                }
             } else {
+                // Live mode: search university site
                 let service = req.di.makeCachedGroupSearchService(req: req)
                 result = try await service.search(query: query)
             }

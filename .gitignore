@@ -10,3 +10,8 @@ db.sqlite
 .env.*
 !.env.example
 default.profraw
+
+# Firestore service account credentials
+*service-account*.json
+firestore-*.json
+credentials.json
