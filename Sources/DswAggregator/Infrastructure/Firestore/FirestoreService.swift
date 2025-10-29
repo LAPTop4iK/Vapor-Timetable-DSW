@@ -1,6 +1,11 @@
 import Foundation
 import Vapor
 
+/// Firestore document response wrapper
+private struct FirestoreDocumentResponse: Codable {
+    let fields: [String: FirestoreFieldValue]
+}
+
 /// Сервис для работы с Google Firestore через REST API
 actor FirestoreService {
     private let projectId: String
@@ -223,10 +228,10 @@ actor FirestoreService {
             "fields": firestoreFields
         ]
 
-        let response = try await client.patch(URI(string: url)) { req in
+        let response = try await client.patch(URI(string: url)) { @Sendable req in
             req.headers.bearerAuthorization = BearerAuthorization(token: token)
             req.headers.contentType = .json
-            req.body = .init(data: try JSONSerialization.data(withJSONObject: requestBody))
+            req.body = .init(data: try! JSONSerialization.data(withJSONObject: requestBody))
         }
 
         guard response.status == .ok else {
@@ -245,7 +250,7 @@ actor FirestoreService {
         let token = try await auth.getAccessToken()
         let url = "\(baseURL)/\(collection)/\(documentId)"
 
-        let response = try await client.get(URI(string: url)) { req in
+        let response = try await client.get(URI(string: url)) { @Sendable req in
             req.headers.bearerAuthorization = BearerAuthorization(token: token)
         }
 
@@ -259,11 +264,7 @@ actor FirestoreService {
             throw Abort(.internalServerError, reason: "Failed to read from Firestore")
         }
 
-        struct DocumentResponse: Codable {
-            let fields: [String: FirestoreFieldValue]
-        }
-
-        let docResponse = try response.content.decode(DocumentResponse.self)
+        let docResponse = try response.content.decode(FirestoreDocumentResponse.self)
         let converted = try convertFromFirestoreFields(docResponse.fields, to: type)
 
         return converted

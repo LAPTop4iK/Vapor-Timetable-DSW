@@ -6,33 +6,50 @@ import Vapor
 final class DIContainer: @unchecked Sendable {
     let appConfig: AppConfig
     let cacheStore: InMemoryCacheStore
-    let firestoreService: FirestoreService?
+    private var _firestoreService: FirestoreService?
+    private let firestoreLock = NSLock()
 
     init(app: Application) {
         self.appConfig = AppConfig(from: app.environment)
         self.cacheStore = InMemoryCacheStore()
+        self._firestoreService = nil
+    }
 
-        // Initialize Firestore service if enabled
-        if appConfig.isFirestoreEnabled,
-           let projectId = appConfig.firestoreProjectId,
-           let credentialsPath = appConfig.firestoreCredentialsPath {
-            do {
-                self.firestoreService = try FirestoreService(
-                    projectId: projectId,
-                    credentialsPath: credentialsPath,
-                    client: app.http.client.shared,
-                    logger: app.logger
-                )
-                app.logger.info("Firestore service initialized in \(appConfig.backendMode.rawValue) mode")
-            } catch {
-                app.logger.error("Failed to initialize Firestore service: \(error)")
-                self.firestoreService = nil
-            }
-        } else {
-            self.firestoreService = nil
-            if appConfig.backendMode == .cached {
-                app.logger.warning("Backend mode is 'cached' but Firestore is not configured")
-            }
+    /// Get or create FirestoreService (lazy initialization with Request.client)
+    func getFirestoreService(req: Request) -> FirestoreService? {
+        // If not enabled, return nil
+        guard appConfig.isFirestoreEnabled else {
+            return nil
+        }
+
+        // Thread-safe lazy initialization
+        firestoreLock.lock()
+        defer { firestoreLock.unlock() }
+
+        if let existing = _firestoreService {
+            return existing
+        }
+
+        // Create new instance
+        guard let projectId = appConfig.firestoreProjectId,
+              let credentialsPath = appConfig.firestoreCredentialsPath else {
+            req.logger.warning("Firestore is enabled but credentials not configured")
+            return nil
+        }
+
+        do {
+            let service = try FirestoreService(
+                projectId: projectId,
+                credentialsPath: credentialsPath,
+                client: req.client,
+                logger: req.logger
+            )
+            _firestoreService = service
+            req.logger.info("Firestore service initialized in \(appConfig.backendMode.rawValue) mode")
+            return service
+        } catch {
+            req.logger.error("Failed to initialize Firestore service: \(error)")
+            return nil
         }
     }
     

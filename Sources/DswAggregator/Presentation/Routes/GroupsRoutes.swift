@@ -35,7 +35,7 @@ struct GroupsRoutes: RouteCollection {
                 )
             } else if config.backendMode == .cached {
                 // Firestore mode: read preloaded data
-                guard let firestore = req.di.firestoreService else {
+                guard let firestore = req.di.getFirestoreService(req: req) else {
                     req.logger.error("Firestore service not available in cached mode")
                     throw Abort(.serviceUnavailable, reason: "Firestore service not configured")
                 }
@@ -77,7 +77,7 @@ struct GroupsRoutes: RouteCollection {
                 result = MockFactory.makeGroups()
             } else if config.backendMode == .cached {
                 // Firestore mode: read preloaded groups list
-                guard let firestore = req.di.firestoreService else {
+                guard let firestore = req.di.getFirestoreService(req: req) else {
                     req.logger.error("Firestore service not available in cached mode")
                     throw Abort(.serviceUnavailable, reason: "Firestore service not configured")
                 }

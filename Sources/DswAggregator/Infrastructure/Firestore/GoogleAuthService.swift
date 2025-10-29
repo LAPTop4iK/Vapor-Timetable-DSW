@@ -73,8 +73,8 @@ actor GoogleAuthService {
         let jwt = try createJWT()
 
         // Запросить токен
-        let response = try await client.post(URI(string: serviceAccount.tokenUri)) { req in
-            try req.content.encode([
+        let response = try await client.post(URI(string: serviceAccount.tokenUri)) { @Sendable req in
+            try! req.content.encode([
                 "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
                 "assertion": jwt
             ], as: .urlEncodedForm)

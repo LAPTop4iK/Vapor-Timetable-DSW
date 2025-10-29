@@ -55,14 +55,18 @@ struct SyncRunner {
         ])
 
         // Initialize services
-        let httpClient = app.http.client.shared
+        // Create a temporary request to get access to Client protocol
+        // This is needed because app.http.client.shared is HTTPClient, not Client
+        let tempRequest = Request(application: app, on: app.eventLoopGroup.next())
+        let client = tempRequest.client
+
         let firestoreService: FirestoreService
 
         do {
             firestoreService = try FirestoreService(
                 projectId: projectId,
                 credentialsPath: credentialsPath,
-                client: httpClient,
+                client: client,
                 logger: logger
             )
             logger.info("Firestore service initialized")
@@ -72,8 +76,8 @@ struct SyncRunner {
         }
 
         // Initialize scraping services
-        let dswClient = VaporDSWClient(client: httpClient, logger: logger)
-        let parser = SwiftSoupScheduleParser()
+        let dswClient = VaporDSWClient(client: client)
+        let parser = SwiftSoupScheduleParser(logger: logger)
         let groupSearchParser = SwiftSoupGroupSearchParser()
 
         let groupSearchService = GroupSearchService(
