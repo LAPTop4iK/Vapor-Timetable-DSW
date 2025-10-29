@@ -11,6 +11,7 @@ import Foundation
 /// Main sync runner that processes all groups and saves to Firestore
 actor SyncAllGroupsRunner {
     private let client: any DSWClient
+    private let httpClient: any Client
     private let parser: any ScheduleParser
     private let teacherService: TeacherDetailsService
     private let writer: FirestoreWriter
@@ -22,6 +23,7 @@ actor SyncAllGroupsRunner {
 
     init(
         client: any DSWClient,
+        httpClient: any Client,
         parser: any ScheduleParser,
         teacherService: TeacherDetailsService,
         writer: FirestoreWriter,
@@ -29,6 +31,7 @@ actor SyncAllGroupsRunner {
         config: SyncConfig
     ) {
         self.client = client
+        self.httpClient = httpClient
         self.parser = parser
         self.teacherService = teacherService
         self.writer = writer
@@ -136,7 +139,7 @@ actor SyncAllGroupsRunner {
     private func fetchAllGroups() async throws -> [GroupInfo] {
         // Fetch all groups by searching with empty query
         // The university site returns all groups when query is empty or very common
-        let htmlResponse = try await client.post("https://harmonogramy.dsw.edu.pl/Plany/ZnajdzGrupe") { request in
+        let htmlResponse = try await httpClient.post(URI(string: "https://harmonogramy.dsw.edu.pl/Plany/ZnajdzGrupe")) { request in
             request.headers.contentType = .urlEncodedForm
             try request.content.encode(["nazwaGrupy": ""], as: .urlEncodedForm)
         }

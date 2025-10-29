@@ -66,6 +66,7 @@ struct SyncRunnerApp {
         // Create and run sync runner
         let runner = SyncAllGroupsRunner(
             client: dswClient,
+            httpClient: app.client,
             parser: parser,
             teacherService: teacherService,
             writer: firestoreWriter,

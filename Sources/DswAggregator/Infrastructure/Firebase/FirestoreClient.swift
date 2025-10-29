@@ -48,6 +48,10 @@ actor FirestoreClient {
         return try convertFromFirestoreDocument(firestoreDoc, as: T.self)
     }
 
+    struct ListResponse: Decodable {
+        let documents: [FirestoreDocument]?
+    }
+
     /// List documents in a collection
     func listDocuments<T: Decodable>(collection: String, pageSize: Int = 100) async throws -> [T] {
         let path = "projects/\(projectId)/databases/(default)/documents/\(collection)"
@@ -62,10 +66,6 @@ actor FirestoreClient {
         guard response.status == .ok else {
             logger.error("Firestore LIST failed: \(response.status)")
             throw Abort(.badGateway, reason: "Firestore returned \(response.status)")
-        }
-
-        struct ListResponse: Decodable {
-            let documents: [FirestoreDocument]?
         }
 
         let listResponse = try response.content.decode(ListResponse.self)
@@ -104,11 +104,11 @@ actor FirestoreClient {
 
         let token = try await authenticator.getAccessToken()
 
-        struct BatchWriteRequest: Encodable {
+        struct BatchWriteRequest: Content, Encodable {
             let writes: [BatchWriteEntry]
         }
 
-        struct BatchWriteEntry: Encodable {
+        struct BatchWriteEntry: Content, Encodable {
             let update: FirestoreDocument
         }
 
@@ -208,12 +208,12 @@ actor FirestoreClient {
 
 // MARK: - Supporting Types
 
-struct FirestoreDocument: Codable {
+struct FirestoreDocument: Content, Codable {
     var name: String
     var fields: [String: FirestoreValue]
 }
 
-enum FirestoreValue: Codable {
+enum FirestoreValue: Content, Codable {
     case string(String)
     case integer(Int)
     case double(Double)

@@ -13,7 +13,6 @@ import Foundation
 actor FirestoreAuthenticator {
     private let credentials: ServiceAccountCredentials
     private let client: Client
-    private let signers = JWTKeyCollection()
 
     private var cachedToken: String?
     private var tokenExpiry: Date?
@@ -21,9 +20,6 @@ actor FirestoreAuthenticator {
     init(credentials: ServiceAccountCredentials, client: Client) throws {
         self.credentials = credentials
         self.client = client
-
-        // Parse the RSA private key
-        try signers.add(rsa: RSAKey.private(pem: credentials.privateKey))
     }
 
     /// Get a valid access token (cached or fresh)
@@ -42,7 +38,7 @@ actor FirestoreAuthenticator {
 
     private func fetchNewAccessToken() async throws -> String {
         // 1. Create JWT
-        let jwt = try createJWT()
+        let jwt = try await createJWT()
 
         // 2. Exchange JWT for access token
         let tokenResponse = try await client.post(URI(string: credentials.tokenUri)) { req in
@@ -77,7 +73,7 @@ actor FirestoreAuthenticator {
         return response.accessToken
     }
 
-    private func createJWT() throws -> String {
+    private func createJWT() async throws -> String {
         struct JWTPayload: JWTKit.JWTPayload {
             let iss: SubjectClaim  // issuer (service account email)
             let scope: String      // requested scopes
@@ -101,6 +97,12 @@ actor FirestoreAuthenticator {
             iat: IssuedAtClaim(value: now)
         )
 
-        return try signers.sign(payload, header: ["kid": credentials.privateKeyId])
+        // Build a local signer collection for this JWT
+        let rsaPrivate = try Insecure.RSA.PrivateKey(pem: credentials.privateKey)
+        let signers = JWTKeyCollection()
+        await signers.add(rsa: rsaPrivate, digestAlgorithm: .sha256, kid: JWKIdentifier(string: credentials.privateKeyId))
+
+        return try await signers.sign(payload, kid: JWKIdentifier(string: credentials.privateKeyId))
     }
 }
+
