@@ -8,7 +8,7 @@
 import Fluent
 import Vapor
 
-final class TeacherModel: Model {
+final class TeacherModel: Model, @unchecked Sendable {
     static let schema = "teachers"
 
     @ID(custom: "id", generatedBy: .user)

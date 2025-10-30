@@ -8,7 +8,7 @@
 import Fluent
 import Vapor
 
-final class SyncStatusModel: Model {
+final class SyncStatusModel: Model, @unchecked Sendable {
     static let schema = "sync_status"
 
     @ID(key: .id)

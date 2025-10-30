@@ -8,7 +8,7 @@
 import Fluent
 import Vapor
 
-final class GroupModel: Model {
+final class GroupModel: Model, @unchecked Sendable {
     static let schema = "groups"
 
     @ID(custom: "group_id", generatedBy: .user)
