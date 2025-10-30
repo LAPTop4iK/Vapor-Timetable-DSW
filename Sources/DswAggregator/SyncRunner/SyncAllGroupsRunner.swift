@@ -223,10 +223,17 @@ public actor SyncAllGroupsRunner {
 
 /// Configuration for sync runner
 public struct SyncConfig {
-    let semesterFrom: String
-    let semesterTo: String
-    let delayBetweenGroupsMs: Int  // milliseconds
-    let delayBetweenTeachersMs: Int  // milliseconds
+    public let semesterFrom: String
+    public let semesterTo: String
+    public let delayBetweenGroupsMs: Int  // milliseconds
+    public let delayBetweenTeachersMs: Int  // milliseconds
+
+    public init(semesterFrom: String, semesterTo: String, delayBetweenGroupsMs: Int, delayBetweenTeachersMs: Int) {
+        self.semesterFrom = semesterFrom
+        self.semesterTo = semesterTo
+        self.delayBetweenGroupsMs = delayBetweenGroupsMs
+        self.delayBetweenTeachersMs = delayBetweenTeachersMs
+    }
 
     public static var `default`: SyncConfig {
         return SyncConfig(

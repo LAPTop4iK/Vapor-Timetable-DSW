@@ -8,7 +8,7 @@
 
 import Vapor
 
-protocol ScheduleParser: Sendable {
+public protocol ScheduleParser: Sendable {
     func parseSchedule(_ html: String) throws -> [ScheduleEvent]
     func parseTeacherInfo(_ html: String, teacherId: Int) throws
       -> (name: String?, title: String?, dept: String?,

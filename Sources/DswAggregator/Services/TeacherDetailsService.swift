@@ -18,7 +18,7 @@ public struct TeacherDetailsService: Sendable {
         self.parser = parser
     }
 
-    func fetchTeacherCard(
+    public func fetchTeacherCard(
         teacherId: Int?,
         fallbackName: String?,
         from: String,
