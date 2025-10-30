@@ -33,7 +33,7 @@ final class TeacherModel: Model, @unchecked Sendable {
     var aboutHTML: String?
 
     @Field(key: "schedule")
-    var scheduleJSON: String
+    var scheduleJSON: String = "[]"
 
     /// Computed property for accessing schedule as [ScheduleEvent]
     var schedule: [ScheduleEvent] {
@@ -73,13 +73,8 @@ final class TeacherModel: Model, @unchecked Sendable {
         self.email = email
         self.phone = phone
         self.aboutHTML = aboutHTML
-        // Encode schedule to JSON string
-        if let data = try? JSONEncoder().encode(schedule),
-           let jsonString = String(data: data, encoding: .utf8) {
-            self.scheduleJSON = jsonString
-        } else {
-            self.scheduleJSON = "[]"
-        }
+        // Use the computed property setter to encode schedule
+        self.schedule = schedule
     }
 
     func toTeacherCard() -> TeacherCard {

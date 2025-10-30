@@ -24,7 +24,7 @@ final class GroupModel: Model, @unchecked Sendable {
     var intervalType: Int
 
     @Field(key: "group_schedule")
-    var groupScheduleJSON: String
+    var groupScheduleJSON: String = "[]"
 
     /// Computed property for accessing groupSchedule as [ScheduleEvent]
     var groupSchedule: [ScheduleEvent] {
@@ -66,14 +66,9 @@ final class GroupModel: Model, @unchecked Sendable {
         self.fromDate = fromDate
         self.toDate = toDate
         self.intervalType = intervalType
-        // Encode groupSchedule to JSON string
-        if let data = try? JSONEncoder().encode(groupSchedule),
-           let jsonString = String(data: data, encoding: .utf8) {
-            self.groupScheduleJSON = jsonString
-        } else {
-            self.groupScheduleJSON = "[]"
-        }
         self.teacherIds = teacherIds
         self.groupInfo = groupInfo
+        // Use the computed property setter to encode groupSchedule
+        self.groupSchedule = groupSchedule
     }
 }
