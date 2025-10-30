@@ -55,7 +55,3 @@ final class GroupModel: Model, @unchecked Sendable {
         self.groupInfo = groupInfo
     }
 }
-
-// Codable conformance for nested types
-extension ScheduleEvent: @unchecked Sendable {}
-extension GroupInfo: @unchecked Sendable {}

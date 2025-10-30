@@ -10,7 +10,7 @@ import Fluent
 public struct CreateGroupsList: AsyncMigration {
     public init() {}
 
-    public func prepare(on database: Database) async throws {
+    public func prepare(on database: any Database) async throws {
         try await database.schema("groups_list")
             .id()
             .field("groups", .json, .required)
@@ -18,7 +18,7 @@ public struct CreateGroupsList: AsyncMigration {
             .create()
     }
 
-    public func revert(on database: Database) async throws {
+    public func revert(on database: any Database) async throws {
         try await database.schema("groups_list").delete()
     }
 }
