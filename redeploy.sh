@@ -10,6 +10,26 @@ git fetch --all
 git reset --hard origin/main
 
 echo ">>> [2/5] Copy configuration files from repo to app directory"
+
+# Check if .env exists and has DB_PASSWORD set
+if [ ! -f "$APP_DIR/.env" ]; then
+    echo "  ❌ ERROR: $APP_DIR/.env not found!"
+    echo "  Create it from template:"
+    echo "    cp $CODE_DIR/.env.production.example $APP_DIR/.env"
+    echo "    nano $APP_DIR/.env  # Set DB_PASSWORD"
+    exit 1
+fi
+
+if ! grep -q "DB_PASSWORD=.\+" "$APP_DIR/.env" 2>/dev/null; then
+    echo "  ⚠️  WARNING: DB_PASSWORD not set in $APP_DIR/.env"
+    echo "  Please edit $APP_DIR/.env and set a secure password"
+    read -p "  Continue anyway? (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
 # Copy docker-compose if it was updated in repo
 if [ -f "$CODE_DIR/docker-compose.production.yml" ]; then
     echo "  - Updating docker-compose.yml"
@@ -36,7 +56,13 @@ fi
 
 echo ">>> [3/5] Build docker images"
 cd "$APP_DIR"
-docker compose build --no-cache vapor
+
+# Try building with legacy builder if BuildKit fails
+echo "  - Building vapor image..."
+if ! docker compose build vapor 2>&1; then
+    echo "  ⚠️  BuildKit failed, trying with legacy builder..."
+    DOCKER_BUILDKIT=0 docker compose build vapor
+fi
 
 echo ">>> [4/5] Restart containers"
 docker compose up -d
