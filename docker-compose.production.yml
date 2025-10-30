@@ -12,7 +12,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vapor}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vapor} -d ${DB_NAME:-dsw_timetable}"]
       interval: 10s
       timeout: 5s
       retries: 5
