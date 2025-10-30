@@ -35,7 +35,7 @@ public struct DatabaseService: Sendable {
             from: groupModel.fromDate,
             to: groupModel.toDate,
             intervalType: groupModel.intervalType,
-            groupSchedule: groupModel.groupSchedule,
+            groupSchedule: groupModel.groupSchedule.value,
             teachers: teachers,
             fetchedAt: fetchedAt
         )
@@ -75,7 +75,7 @@ public struct DatabaseService: Sendable {
             existing.fromDate = fromDate
             existing.toDate = toDate
             existing.intervalType = intervalType
-            existing.groupSchedule = groupSchedule
+            existing.groupSchedule = JSONBlob(groupSchedule)
             existing.teacherIds = teacherIds
             existing.groupInfo = groupInfo
             try await existing.update(on: db)
@@ -104,7 +104,7 @@ public struct DatabaseService: Sendable {
             existing.email = card.email
             existing.phone = card.phone
             existing.aboutHTML = card.aboutHTML
-            existing.schedule = card.schedule
+            existing.schedule = JSONBlob(card.schedule)
             try await existing.update(on: db)
         } else {
             // Create new record
@@ -163,3 +163,4 @@ public struct DatabaseService: Sendable {
         }
     }
 }
+

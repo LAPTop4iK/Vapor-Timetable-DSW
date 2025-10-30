@@ -52,6 +52,7 @@ if [ -d "$CODE_DIR/scripts" ]; then
     rm -rf "$APP_DIR/scripts"
     cp -r "$CODE_DIR/scripts" "$APP_DIR/scripts"
     chmod +x "$APP_DIR/scripts"/*.sh
+    chmod +x "$APP_DIR/vapor"/*.sh
 fi
 
 echo ">>> [3/5] Build docker images"

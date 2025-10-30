@@ -24,7 +24,7 @@ final class GroupModel: Model, @unchecked Sendable {
     var intervalType: Int
 
     @Field(key: "group_schedule")
-    var groupSchedule: [ScheduleEvent]
+    var groupSchedule: JSONBlob<[ScheduleEvent]>
 
     @Field(key: "teacher_ids")
     var teacherIds: [Int]
@@ -50,8 +50,9 @@ final class GroupModel: Model, @unchecked Sendable {
         self.fromDate = fromDate
         self.toDate = toDate
         self.intervalType = intervalType
-        self.groupSchedule = groupSchedule
+        self.groupSchedule = JSONBlob(groupSchedule)
         self.teacherIds = teacherIds
         self.groupInfo = groupInfo
     }
 }
+

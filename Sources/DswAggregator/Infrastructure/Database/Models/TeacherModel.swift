@@ -33,7 +33,7 @@ final class TeacherModel: Model, @unchecked Sendable {
     var aboutHTML: String?
 
     @Field(key: "schedule")
-    var schedule: [ScheduleEvent]
+    var schedule: JSONBlob<[ScheduleEvent]>
 
     @Timestamp(key: "fetched_at", on: .update)
     var fetchedAt: Date?
@@ -57,7 +57,7 @@ final class TeacherModel: Model, @unchecked Sendable {
         self.email = email
         self.phone = phone
         self.aboutHTML = aboutHTML
-        self.schedule = schedule
+        self.schedule = JSONBlob(schedule)
     }
 
     func toTeacherCard() -> TeacherCard {
@@ -69,7 +69,7 @@ final class TeacherModel: Model, @unchecked Sendable {
             email: self.email,
             phone: self.phone,
             aboutHTML: self.aboutHTML,
-            schedule: self.schedule
+            schedule: self.schedule.value
         )
     }
 }
