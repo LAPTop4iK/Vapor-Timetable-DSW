@@ -66,7 +66,7 @@ public struct SwiftSoupScheduleParser: ScheduleParser {
         return res
     }
 
-    func parseSchedule(_ html: String) throws -> [ScheduleEvent] {
+    public func parseSchedule(_ html: String) throws -> [ScheduleEvent] {
         log("parseSchedule.raw.length", html.count)
 
         let unwrapped = unwrapDXHTML(html)
@@ -238,7 +238,7 @@ public struct SwiftSoupScheduleParser: ScheduleParser {
         return result
     }
 
-    func parseTeacherInfo(
+    public func parseTeacherInfo(
         _ html: String,
         teacherId: Int
     ) throws -> (name: String?,

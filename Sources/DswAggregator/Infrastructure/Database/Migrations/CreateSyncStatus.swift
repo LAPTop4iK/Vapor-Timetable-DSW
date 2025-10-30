@@ -8,6 +8,8 @@
 import Fluent
 
 public struct CreateSyncStatus: AsyncMigration {
+    public init() {}
+
     public func prepare(on database: Database) async throws {
         try await database.schema("sync_status")
             .id()
@@ -26,3 +28,4 @@ public struct CreateSyncStatus: AsyncMigration {
         try await database.schema("sync_status").delete()
     }
 }
+

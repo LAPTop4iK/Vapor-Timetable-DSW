@@ -8,6 +8,8 @@
 import Fluent
 
 public struct CreateTeachers: AsyncMigration {
+    public init() {}
+
     public func prepare(on database: Database) async throws {
         try await database.schema("teachers")
             .field("id", .int, .identifier(auto: false))
@@ -26,3 +28,4 @@ public struct CreateTeachers: AsyncMigration {
         try await database.schema("teachers").delete()
     }
 }
+

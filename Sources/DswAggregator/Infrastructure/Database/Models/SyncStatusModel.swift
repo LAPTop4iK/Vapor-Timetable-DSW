@@ -9,10 +9,10 @@ import Fluent
 import Vapor
 
 public final class SyncStatusModel: Model, @unchecked Sendable {
-    static let schema = "sync_status"
+    public static let schema = "sync_status"
 
     @ID(key: .id)
-    var id: UUID?
+    public var id: UUID?
 
     @Field(key: "timestamp")
     var timestamp: Date
@@ -38,7 +38,7 @@ public final class SyncStatusModel: Model, @unchecked Sendable {
     @Field(key: "started_at")
     var startedAt: Date
 
-    init() {}
+    public init() {}
 
     init(
         timestamp: Date,

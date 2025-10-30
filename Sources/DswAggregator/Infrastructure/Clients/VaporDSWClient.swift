@@ -64,7 +64,7 @@ public final class VaporDSWClient: @unchecked Sendable, DSWClient {
         return html
     }
 
-    func groupScheduleHTML(
+    public func groupScheduleHTML(
         groupId: Int,
         from: String,
         to: String,
@@ -81,7 +81,7 @@ public final class VaporDSWClient: @unchecked Sendable, DSWClient {
         return try await postForm(url, fields: fields)
     }
 
-    func teacherScheduleHTML(
+    public func teacherScheduleHTML(
         teacherId: Int,
         from: String,
         to: String,
@@ -98,7 +98,7 @@ public final class VaporDSWClient: @unchecked Sendable, DSWClient {
         return try await postForm(url, fields: fields)
     }
 
-    func teacherInfoHTML(teacherId: Int) async throws -> String {
+    public func teacherInfoHTML(teacherId: Int) async throws -> String {
         let url = "https://harmonogramy.dsw.edu.pl/Plany/OpisProwadzacego/\(teacherId)"
         let resp = try await client.get(URI(string: url)) { req in
             req.headers.replaceOrAdd(
