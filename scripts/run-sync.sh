@@ -1,51 +1,36 @@
 #!/bin/bash
-#
-# Script to run the sync process
-# This should be called by cron
-#
+# Run SyncRunner to populate PostgreSQL with fresh data
 
-set -e
+set -euo pipefail
 
-# Configuration
-LOG_DIR="/var/log/dsw-sync"
-LOG_FILE="$LOG_DIR/sync-$(date +%Y%m%d-%H%M%S).log"
-LATEST_LOG="$LOG_DIR/latest.log"
-DOCKER_IMAGE="dsw-sync-runner:latest"
-NETWORK="vapor-timetable-dsw_default"
+APP_DIR="/srv/app"
 
-# Ensure log directory exists
-mkdir -p "$LOG_DIR"
+echo "🔄 Starting sync runner..."
+echo ""
 
-# Log start
-echo "========================================" | tee -a "$LATEST_LOG"
-echo "DSW Sync started at $(date)" | tee -a "$LATEST_LOG"
-echo "========================================" | tee -a "$LATEST_LOG"
-
-# Load .env file if exists
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+# Load environment variables
+if [ -f "$APP_DIR/.env" ]; then
+    set -a
+    source "$APP_DIR/.env"
+    set +a
+else
+    echo "❌ Error: $APP_DIR/.env not found!"
+    exit 1
 fi
 
-# Run sync in Docker container
+# Run SyncRunner with same network as postgres
 docker run --rm \
-    --name dsw-sync-runner \
-    --network "$NETWORK" \
-    -e DATABASE_URL="${DATABASE_URL:-postgres://vapor:${POSTGRES_PASSWORD}@dsw-postgres:5432/dsw_timetable}" \
-    -e DSW_DEFAULT_FROM="${DSW_DEFAULT_FROM:-2025-09-06}" \
-    -e DSW_DEFAULT_TO="${DSW_DEFAULT_TO:-2026-02-08}" \
-    -e SYNC_DELAY_GROUPS_MS="${SYNC_DELAY_GROUPS_MS:-150}" \
-    -e SYNC_DELAY_TEACHERS_MS="${SYNC_DELAY_TEACHERS_MS:-100}" \
-    "$DOCKER_IMAGE" 2>&1 | tee -a "$LOG_FILE" | tee "$LATEST_LOG"
+    --network app_app-network \
+    --env DATABASE_URL="postgres://${DB_USER:-vapor}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-dsw_timetable}" \
+    --env DSW_DEFAULT_FROM="${DSW_DEFAULT_FROM:-2025-09-06}" \
+    --env DSW_DEFAULT_TO="${DSW_DEFAULT_TO:-2026-02-08}" \
+    --env SYNC_DELAY_GROUPS_MS="${SYNC_DELAY_GROUPS_MS:-150}" \
+    --env SYNC_DELAY_TEACHERS_MS="${SYNC_DELAY_TEACHERS_MS:-100}" \
+    --env LOG_LEVEL="${LOG_LEVEL:-info}" \
+    dsw-sync-runner:latest
 
-EXIT_CODE=${PIPESTATUS[0]}
-
-# Log completion
-echo "========================================" | tee -a "$LATEST_LOG"
-echo "DSW Sync finished at $(date) with exit code $EXIT_CODE" | tee -a "$LATEST_LOG"
-echo "========================================" | tee -a "$LATEST_LOG"
-
-# Keep only last 30 log files
-cd "$LOG_DIR"
-ls -t sync-*.log | tail -n +31 | xargs -r rm
-
-exit $EXIT_CODE
+echo ""
+echo "✅ Sync completed!"
+echo ""
+echo "Check sync status in database:"
+echo "  docker compose exec postgres psql -U ${DB_USER:-vapor} -d ${DB_NAME:-dsw_timetable} -c 'SELECT * FROM sync_status ORDER BY timestamp DESC LIMIT 5;'"

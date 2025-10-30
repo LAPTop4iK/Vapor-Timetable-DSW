@@ -1,20 +1,16 @@
 #!/bin/bash
-#
-# Build sync-runner Docker image
-#
+# Build the SyncRunner Docker image
 
-set -e
+set -euo pipefail
 
-cd "$(dirname "$0")/.."
+APP_DIR="/srv/app"
+CODE_DIR="$APP_DIR/vapor"
 
-echo "🔨 Building sync-runner Docker image..."
+echo "🔨 Building SyncRunner Docker image..."
 
+cd "$CODE_DIR"
 docker build -f Dockerfile.sync -t dsw-sync-runner:latest .
 
-echo "✅ Sync-runner image built successfully!"
+echo "✅ SyncRunner image built successfully!"
 echo ""
-echo "To run manually:"
-echo "  ./scripts/run-sync.sh"
-echo ""
-echo "To setup cron:"
-echo "  ./scripts/setup-cron.sh"
+echo "Run it with: $APP_DIR/scripts/run-sync.sh"

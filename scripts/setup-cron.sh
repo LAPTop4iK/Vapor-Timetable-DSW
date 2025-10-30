@@ -1,27 +1,39 @@
 #!/bin/bash
-#
-# Setup cron job for DSW sync
-# Run this script once on the VPS to configure cron
-#
+# Setup cron job to run SyncRunner daily at 3 AM
 
-set -e
+set -euo pipefail
 
-CRON_USER="root"
-SCRIPT_PATH="/srv/app/vapor/scripts/run-sync.sh"
+APP_DIR="/srv/app"
+CRON_TIME="${CRON_TIME:-0 3 * * *}"  # Default: 3 AM daily
 
-# Ensure script is executable
-chmod +x "$SCRIPT_PATH"
-
-# Create cron job (runs at 3 AM and 3 PM daily)
-CRON_SCHEDULE="0 3,15 * * *"
-CRON_COMMAND="$SCRIPT_PATH"
-
-# Add cron job if it doesn't exist
-(crontab -u "$CRON_USER" -l 2>/dev/null | grep -v "$SCRIPT_PATH"; echo "$CRON_SCHEDULE $CRON_COMMAND") | crontab -u "$CRON_USER" -
-
-echo "✅ Cron job configured successfully!"
-echo "Schedule: $CRON_SCHEDULE (3 AM and 3 PM daily)"
-echo "Command: $CRON_COMMAND"
+echo "📅 Setting up cron job for SyncRunner"
 echo ""
-echo "Current crontab for $CRON_USER:"
-crontab -u "$CRON_USER" -l
+echo "Schedule: $CRON_TIME (cron format)"
+echo ""
+
+# Create cron job entry
+CRON_ENTRY="$CRON_TIME $APP_DIR/scripts/run-sync.sh >> $APP_DIR/sync-cron.log 2>&1"
+
+# Check if cron entry already exists
+if crontab -l 2>/dev/null | grep -q "run-sync.sh"; then
+    echo "⚠️  Cron job already exists. Updating..."
+    # Remove old entry
+    crontab -l 2>/dev/null | grep -v "run-sync.sh" | crontab -
+fi
+
+# Add new entry
+(crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
+
+echo "✅ Cron job installed successfully!"
+echo ""
+echo "Current crontab:"
+crontab -l | grep "run-sync.sh"
+echo ""
+echo "Logs will be written to: $APP_DIR/sync-cron.log"
+echo ""
+echo "To change schedule, set CRON_TIME environment variable:"
+echo "  CRON_TIME='0 */6 * * *' ./scripts/setup-cron.sh  # Every 6 hours"
+echo "  CRON_TIME='0 2,14 * * *' ./scripts/setup-cron.sh  # 2 AM and 2 PM"
+echo ""
+echo "To remove cron job:"
+echo "  crontab -l | grep -v 'run-sync.sh' | crontab -"
