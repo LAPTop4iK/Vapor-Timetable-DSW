@@ -46,7 +46,7 @@ public struct SwiftSoupScheduleParser: ScheduleParser {
     }
 
     private func clean(_ s: String?) -> String? {
-        guard var str = s?.replacingOccurrences(of: "\u{00A0}", with: " ")
+        guard let str = s?.replacingOccurrences(of: "\u{00A0}", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines),
               !str.isEmpty else { return nil }
         return str
@@ -84,7 +84,7 @@ public struct SwiftSoupScheduleParser: ScheduleParser {
             log("parseSchedule.noTable", "[]")
             return []
         }
-        log("parseSchedule.table.id", try tbl.id())
+        log("parseSchedule.table.id", tbl.id())
 
         let rows = try tbl.select("tr.dxgvGroupRow_iOS, tr.dxgvDataRow_iOS").array()
         let typeSet: Set<String> = ["Wyk","Cw","Sem","Labor","Proj","Konw","Prac"]
@@ -191,7 +191,7 @@ public struct SwiftSoupScheduleParser: ScheduleParser {
 
             // fallback группы (бывают без ссылки)
             if foundGroups == nil {
-                if let td = try? tds.first(where: {
+                if let td = tds.first(where: {
                     ((try? $0.text()) ?? "").contains("sem")
                 }),
                    let txt = try? td.text(),

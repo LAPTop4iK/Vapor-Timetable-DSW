@@ -2,7 +2,6 @@ import Vapor
 import Fluent
 import FluentPostgresDriver
 import Foundation
-import App
 
 public func runSyncRunner() async throws {
     // Setup Vapor app

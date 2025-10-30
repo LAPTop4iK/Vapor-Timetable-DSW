@@ -4,9 +4,9 @@ import SQLKit
 fileprivate enum MigrationSQLError: Error { case sqlUnavailable }
 
 public struct FixJsonColumns: AsyncMigration {
-    public func prepare(on database: Database) async throws {
+    public func prepare(on database: any Database) async throws {
         // Use SQLKit to run raw SQL on Postgres
-        guard let sql = database as? SQLDatabase else { throw MigrationSQLError.sqlUnavailable }
+        guard let sql = database as? (any SQLDatabase) else { throw MigrationSQLError.sqlUnavailable }
 
         // Alter teachers.schedule from jsonb[] to jsonb
         try await sql.raw(
@@ -29,9 +29,9 @@ public struct FixJsonColumns: AsyncMigration {
         ).run()
     }
     
-    public func revert(on database: Database) async throws {
+    public func revert(on database: any Database) async throws {
         // Use SQLKit to run raw SQL on Postgres
-        guard let sql = database as? SQLDatabase else { throw MigrationSQLError.sqlUnavailable }
+        guard let sql = database as? (any SQLDatabase) else { throw MigrationSQLError.sqlUnavailable }
 
         // Reverting from jsonb to jsonb[] is ambiguous.
         // Perform best-effort revert by wrapping the jsonb in a single-element array.
