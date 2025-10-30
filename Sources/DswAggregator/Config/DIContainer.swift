@@ -1,18 +1,30 @@
 import Vapor
+import Fluent
 
 /// DI-контейнер приложения.
 /// Хранится один экземпляр на всё приложение.
 /// unsafe? Нет: мы используем только неизменяемые ссылки + actor для кэша.
-import Vapor
 final class DIContainer: @unchecked Sendable {
     let appConfig: AppConfig
     let cacheStore: InMemoryCacheStore
-    
+
     init(app: Application) {
         self.appConfig = AppConfig()
         self.cacheStore = InMemoryCacheStore()
+
+        // Database will be configured via Fluent in configure.swift
+        if appConfig.backendMode == .cached {
+            app.logger.info("Backend mode: cached (PostgreSQL)")
+        } else {
+            app.logger.info("Backend mode: live (scraping)")
+        }
     }
-    
+
+    // Database service factory
+    func makeDatabaseService(req: Request) -> DatabaseService {
+        DatabaseService(db: req.db)
+    }
+
     // фабрики сервисов (как было)
     func makeDSWClient(req: Request) -> any DSWClient {
         VaporDSWClient(client: req.client)

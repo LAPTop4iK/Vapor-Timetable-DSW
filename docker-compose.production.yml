@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dsw-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-vapor}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-dsw_timetable}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vapor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vapor:
+    build:
+      context: ./vapor
+      dockerfile: Dockerfile
+    container_name: vapor
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8080"
+    environment:
+      # Runtime environment
+      - ENV=production
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+
+      # Database configuration
+      - DATABASE_URL=postgres://${DB_USER:-vapor}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-dsw_timetable}
+
+      # Default time window
+      - DSW_DEFAULT_FROM=${DSW_DEFAULT_FROM:-2025-09-06}
+      - DSW_DEFAULT_TO=${DSW_DEFAULT_TO:-2026-02-08}
+      - DSW_DEFAULT_INTERVAL=${DSW_DEFAULT_INTERVAL:-semester}
+
+      # Backend mode: live (scrape on request) or cached (read from PostgreSQL)
+      - DSW_BACKEND_MODE=${DSW_BACKEND_MODE:-cached}
+      - DSW_ENABLE_MOCK=${DSW_ENABLE_MOCK:-0}
+
+      # Cache TTLs (seconds)
+      - DSW_TTL_SCHEDULE_SECS=${DSW_TTL_SCHEDULE_SECS:-60}
+      - DSW_TTL_SEARCH_SECS=${DSW_TTL_SEARCH_SECS:-259200}
+      - DSW_TTL_AGGREGATE_SECS=${DSW_TTL_AGGREGATE_SECS:-18000}
+      - DSW_TTL_TEACHER_SECS=${DSW_TTL_TEACHER_SECS:-18000}
+
+      # Feature flags
+      - DSW_FEATURE_FLAGS_JSON=${DSW_FEATURE_FLAGS_JSON:-{"show_ads":true,"show_debug_menu":false}}
+      - DSW_FEATURE_FLAGS_VERSION=${DSW_FEATURE_FLAGS_VERSION:-1.0.1}
+      - DSW_FEATURE_PARAMS_JSON=${DSW_FEATURE_PARAMS_JSON:-{"premium_trial_duration":86400}}
+      - DSW_FEATURE_PARAMS_VERSION=${DSW_FEATURE_PARAMS_VERSION:-1.0.1}
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/feature-flags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - vapor
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - /var/www/html:/var/www/html:ro
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

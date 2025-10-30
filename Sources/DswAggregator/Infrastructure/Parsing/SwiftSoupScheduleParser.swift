@@ -10,9 +10,13 @@ import Vapor
 import SwiftSoup
 import Foundation
 
-struct SwiftSoupScheduleParser: ScheduleParser {
+public struct SwiftSoupScheduleParser: ScheduleParser {
 
     let logger: Logger
+
+    public init(logger: Logger) {
+        self.logger = logger
+    }
 
     private func log(_ msg: String, _ data: Any? = nil) {
         if let data {
@@ -62,7 +66,7 @@ struct SwiftSoupScheduleParser: ScheduleParser {
         return res
     }
 
-    func parseSchedule(_ html: String) throws -> [ScheduleEvent] {
+    public func parseSchedule(_ html: String) throws -> [ScheduleEvent] {
         log("parseSchedule.raw.length", html.count)
 
         let unwrapped = unwrapDXHTML(html)
@@ -234,7 +238,7 @@ struct SwiftSoupScheduleParser: ScheduleParser {
         return result
     }
 
-    func parseTeacherInfo(
+    public func parseTeacherInfo(
         _ html: String,
         teacherId: Int
     ) throws -> (name: String?,

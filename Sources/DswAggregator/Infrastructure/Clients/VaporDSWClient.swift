@@ -9,10 +9,10 @@
 import Vapor
 
 /// HTTP-клиент под harmonogramy.dsw.edu.pl
-final class VaporDSWClient: @unchecked Sendable, DSWClient {
+public final class VaporDSWClient: @unchecked Sendable, DSWClient {
 
     private let client: any Client
-    init(client: any Client) { self.client = client }
+    public init(client: any Client) { self.client = client }
 
     // Константное окно — из реального браузерного запроса
     private let custWindowStateJSON =
@@ -64,7 +64,7 @@ final class VaporDSWClient: @unchecked Sendable, DSWClient {
         return html
     }
 
-    func groupScheduleHTML(
+    public func groupScheduleHTML(
         groupId: Int,
         from: String,
         to: String,
@@ -81,7 +81,7 @@ final class VaporDSWClient: @unchecked Sendable, DSWClient {
         return try await postForm(url, fields: fields)
     }
 
-    func teacherScheduleHTML(
+    public func teacherScheduleHTML(
         teacherId: Int,
         from: String,
         to: String,
@@ -98,7 +98,7 @@ final class VaporDSWClient: @unchecked Sendable, DSWClient {
         return try await postForm(url, fields: fields)
     }
 
-    func teacherInfoHTML(teacherId: Int) async throws -> String {
+    public func teacherInfoHTML(teacherId: Int) async throws -> String {
         let url = "https://harmonogramy.dsw.edu.pl/Plany/OpisProwadzacego/\(teacherId)"
         let resp = try await client.get(URI(string: url)) { req in
             req.headers.replaceOrAdd(

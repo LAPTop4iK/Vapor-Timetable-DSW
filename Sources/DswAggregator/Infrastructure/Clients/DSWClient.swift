@@ -8,7 +8,7 @@
 
 import Vapor
 
-protocol DSWClient: Sendable {
+public protocol DSWClient: Sendable {
     func groupScheduleHTML(
         groupId: Int,
         from: String,

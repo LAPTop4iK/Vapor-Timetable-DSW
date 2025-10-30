@@ -8,7 +8,12 @@
 
 import Vapor
 
-struct TrackInfo: Content {
-    let trackId: Int
-    let title: String
+public struct TrackInfo: Content {
+    public let trackId: Int
+    public let title: String
+
+    public init(trackId: Int, title: String) {
+        self.trackId = trackId
+        self.title = title
+    }
 }

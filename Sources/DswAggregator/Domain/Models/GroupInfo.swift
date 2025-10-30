@@ -8,11 +8,27 @@
 
 import Vapor
 
-struct GroupInfo: Content {
-    let groupId: Int
-    let code: String
-    let name: String
-    let tracks: [TrackInfo]
-    let program: String
-    let faculty: String
+public struct GroupInfo: Content {
+    public let groupId: Int
+    public let code: String
+    public let name: String
+    public let tracks: [TrackInfo]
+    public let program: String
+    public let faculty: String
+
+    public init(
+        groupId: Int,
+        code: String,
+        name: String,
+        tracks: [TrackInfo],
+        program: String,
+        faculty: String
+    ) {
+        self.groupId = groupId
+        self.code = code
+        self.name = name
+        self.tracks = tracks
+        self.program = program
+        self.faculty = faculty
+    }
 }

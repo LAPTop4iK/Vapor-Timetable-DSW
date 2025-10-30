@@ -8,7 +8,7 @@
 
 import Foundation
 
-enum JSONValue: Codable, Sendable, Equatable {
+public enum JSONValue: Codable, Sendable, Equatable {
     case bool(Bool)
     case int(Int)
     case double(Double)
@@ -16,7 +16,7 @@ enum JSONValue: Codable, Sendable, Equatable {
     case array([JSONValue])
     case object([String: JSONValue])
 
-    init(from d: any Decoder) throws {
+    public init(from d: any Decoder) throws {
         let c = try d.singleValueContainer()
         if let v = try? c.decode(Bool.self)   { self = .bool(v);   return }
         if let v = try? c.decode(Int.self)    { self = .int(v);    return }
@@ -31,7 +31,7 @@ enum JSONValue: Codable, Sendable, Equatable {
         )
     }
 
-    func encode(to e: any Encoder) throws {
+    public func encode(to e: any Encoder) throws {
         var c = e.singleValueContainer()
         switch self {
         case .bool(let v):   try c.encode(v)
