@@ -19,7 +19,7 @@ public struct CreateTeachers: AsyncMigration {
             .field("email", .string)
             .field("phone", .string)
             .field("about_html", .custom("TEXT"))
-            .field("schedule", .json)
+            .field("schedule", .custom("TEXT"))
             .field("fetched_at", .datetime)
             .create()
     }

@@ -33,12 +33,14 @@ final class TeacherModel: Model, @unchecked Sendable {
     var aboutHTML: String?
 
     @Field(key: "schedule")
-    var schedule: JSONBlob<[ScheduleEvent]>
+    var scheduleJSON: String
 
     @Timestamp(key: "fetched_at", on: .update)
     var fetchedAt: Date?
 
-    init() {}
+    init() {
+        self.scheduleJSON = "[]"
+    }
 
     init(
         id: Int,
@@ -48,7 +50,7 @@ final class TeacherModel: Model, @unchecked Sendable {
         email: String?,
         phone: String?,
         aboutHTML: String?,
-        schedule: [ScheduleEvent]
+        scheduleJSON: String
     ) {
         self.id = id
         self.name = name
@@ -57,11 +59,20 @@ final class TeacherModel: Model, @unchecked Sendable {
         self.email = email
         self.phone = phone
         self.aboutHTML = aboutHTML
-        self.schedule = JSONBlob(schedule)
+        self.scheduleJSON = scheduleJSON
     }
 
     func toTeacherCard() -> TeacherCard {
-        TeacherCard(
+        // Decode schedule from JSON string
+        let schedule: [ScheduleEvent]
+        if let data = scheduleJSON.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([ScheduleEvent].self, from: data) {
+            schedule = decoded
+        } else {
+            schedule = []
+        }
+
+        return TeacherCard(
             id: self.id ?? 0,
             name: self.name,
             title: self.title,
@@ -69,7 +80,7 @@ final class TeacherModel: Model, @unchecked Sendable {
             email: self.email,
             phone: self.phone,
             aboutHTML: self.aboutHTML,
-            schedule: self.schedule.value
+            schedule: schedule
         )
     }
 }

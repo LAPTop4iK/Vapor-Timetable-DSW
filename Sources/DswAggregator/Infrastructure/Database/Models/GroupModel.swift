@@ -24,7 +24,7 @@ final class GroupModel: Model, @unchecked Sendable {
     var intervalType: Int
 
     @Field(key: "group_schedule")
-    var groupSchedule: JSONBlob<[ScheduleEvent]>
+    var groupScheduleJSON: String
 
     @Field(key: "teacher_ids")
     var teacherIds: [Int]
@@ -35,14 +35,16 @@ final class GroupModel: Model, @unchecked Sendable {
     @Timestamp(key: "fetched_at", on: .update)
     var fetchedAt: Date?
 
-    init() {}
+    init() {
+        self.groupScheduleJSON = "[]"
+    }
 
     init(
         id: Int,
         fromDate: String,
         toDate: String,
         intervalType: Int,
-        groupSchedule: [ScheduleEvent],
+        groupScheduleJSON: String,
         teacherIds: [Int],
         groupInfo: GroupInfo
     ) {
@@ -50,7 +52,7 @@ final class GroupModel: Model, @unchecked Sendable {
         self.fromDate = fromDate
         self.toDate = toDate
         self.intervalType = intervalType
-        self.groupSchedule = JSONBlob(groupSchedule)
+        self.groupScheduleJSON = groupScheduleJSON
         self.teacherIds = teacherIds
         self.groupInfo = groupInfo
     }
