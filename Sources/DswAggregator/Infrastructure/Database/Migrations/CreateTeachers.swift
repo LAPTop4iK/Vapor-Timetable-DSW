@@ -13,13 +13,13 @@ public struct CreateTeachers: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema("teachers")
             .field("id", .int, .identifier(auto: false))
-            .field("name", .string)
-            .field("title", .string)
-            .field("department", .string)
+            .field("name", .custom("TEXT"))
+            .field("title", .custom("TEXT"))
+            .field("department", .custom("TEXT"))
             .field("email", .string)
             .field("phone", .string)
-            .field("about_html", .string)
-            .field("schedule", .json, .required)
+            .field("about_html", .custom("TEXT"))
+            .field("schedule", .json)
             .field("fetched_at", .datetime)
             .create()
     }
