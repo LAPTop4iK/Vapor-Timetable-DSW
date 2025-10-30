@@ -22,11 +22,14 @@ public func configure(_ app: Application) async throws {
 
         app.databases.use(
             .postgres(
-                hostname: hostname,
-                port: port,
-                username: username,
-                password: password,
-                database: database
+                configuration: .init(
+                    hostname: hostname,
+                    port: port,
+                    username: username,
+                    password: password,
+                    database: database,
+                    tls: .disable
+                )
             ),
             as: .psql
         )

@@ -41,11 +41,14 @@ struct SyncRunnerApp {
 
             app.databases.use(
                 .postgres(
-                    hostname: hostname,
-                    port: port,
-                    username: username,
-                    password: password,
-                    database: database
+                    configuration: .init(
+                        hostname: hostname,
+                        port: port,
+                        username: username,
+                        password: password,
+                        database: database,
+                        tls: .disable
+                    )
                 ),
                 as: .psql
             )
@@ -69,12 +72,7 @@ struct SyncRunnerApp {
         logger.info("  - Delay between teachers: \(config.delayBetweenTeachersMs)ms")
 
         // Initialize database service
-        guard let db = app.db as? Database else {
-            logger.error("❌ Database not configured")
-            throw Abort(.internalServerError, reason: "Database not configured")
-        }
-
-        let dbService = DatabaseService(db: db)
+        let dbService = DatabaseService(db: app.db)
 
         // Initialize services
         let dswClient = VaporDSWClient(client: app.client)
