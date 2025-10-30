@@ -60,7 +60,7 @@ public struct DatabaseService: Sendable {
 
     // MARK: - Write Operations
 
-    /// Save or update group data
+    /// Save or update group data (upsert)
     public func saveGroup(
         groupId: Int,
         fromDate: String,
@@ -70,31 +70,56 @@ public struct DatabaseService: Sendable {
         teacherIds: [Int],
         groupInfo: GroupInfo
     ) async throws {
-        let group = GroupModel(
-            id: groupId,
-            fromDate: fromDate,
-            toDate: toDate,
-            intervalType: intervalType,
-            groupSchedule: groupSchedule,
-            teacherIds: teacherIds,
-            groupInfo: groupInfo
-        )
-        try await group.save(on: db)
+        if let existing = try await GroupModel.find(groupId, on: db) {
+            // Update existing record
+            existing.fromDate = fromDate
+            existing.toDate = toDate
+            existing.intervalType = intervalType
+            existing.groupSchedule = groupSchedule
+            existing.teacherIds = teacherIds
+            existing.groupInfo = groupInfo
+            try await existing.update(on: db)
+        } else {
+            // Create new record
+            let group = GroupModel(
+                id: groupId,
+                fromDate: fromDate,
+                toDate: toDate,
+                intervalType: intervalType,
+                groupSchedule: groupSchedule,
+                teacherIds: teacherIds,
+                groupInfo: groupInfo
+            )
+            try await group.create(on: db)
+        }
     }
 
-    /// Save or update teacher data
+    /// Save or update teacher data (upsert)
     public func saveTeacher(card: TeacherCard) async throws {
-        let teacher = TeacherModel(
-            id: card.id,
-            name: card.name,
-            title: card.title,
-            department: card.department,
-            email: card.email,
-            phone: card.phone,
-            aboutHTML: card.aboutHTML,
-            schedule: card.schedule
-        )
-        try await teacher.save(on: db)
+        if let existing = try await TeacherModel.find(card.id, on: db) {
+            // Update existing record
+            existing.name = card.name
+            existing.title = card.title
+            existing.department = card.department
+            existing.email = card.email
+            existing.phone = card.phone
+            existing.aboutHTML = card.aboutHTML
+            existing.schedule = card.schedule
+            try await existing.update(on: db)
+        } else {
+            // Create new record
+            let teacher = TeacherModel(
+                id: card.id,
+                name: card.name,
+                title: card.title,
+                department: card.department,
+                email: card.email,
+                phone: card.phone,
+                aboutHTML: card.aboutHTML,
+                schedule: card.schedule
+            )
+            try await teacher.create(on: db)
+        }
     }
 
     /// Save groups list
