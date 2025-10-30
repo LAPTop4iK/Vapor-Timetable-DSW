@@ -16,7 +16,7 @@ public struct CreateGroups: AsyncMigration {
             .field("from_date", .string, .required)
             .field("to_date", .string, .required)
             .field("interval_type", .int, .required)
-            .field("group_schedule", .json, .required)
+            .field("group_schedule", .custom("TEXT"), .required)
             .field("teacher_ids", .array(of: .int), .required)
             .field("group_info", .json, .required)
             .field("fetched_at", .datetime)

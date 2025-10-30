@@ -33,7 +33,23 @@ final class TeacherModel: Model, @unchecked Sendable {
     var aboutHTML: String?
 
     @Field(key: "schedule")
-    var schedule: [ScheduleEvent]
+    var scheduleJSON: String
+
+    /// Computed property for accessing schedule as [ScheduleEvent]
+    var schedule: [ScheduleEvent] {
+        get {
+            guard let data = scheduleJSON.data(using: .utf8) else { return [] }
+            return (try? JSONDecoder().decode([ScheduleEvent].self, from: data)) ?? []
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let jsonString = String(data: data, encoding: .utf8) {
+                scheduleJSON = jsonString
+            } else {
+                scheduleJSON = "[]"
+            }
+        }
+    }
 
     @Timestamp(key: "fetched_at", on: .update)
     var fetchedAt: Date?
@@ -57,7 +73,13 @@ final class TeacherModel: Model, @unchecked Sendable {
         self.email = email
         self.phone = phone
         self.aboutHTML = aboutHTML
-        self.schedule = schedule
+        // Encode schedule to JSON string
+        if let data = try? JSONEncoder().encode(schedule),
+           let jsonString = String(data: data, encoding: .utf8) {
+            self.scheduleJSON = jsonString
+        } else {
+            self.scheduleJSON = "[]"
+        }
     }
 
     func toTeacherCard() -> TeacherCard {
