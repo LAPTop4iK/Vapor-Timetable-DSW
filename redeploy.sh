@@ -16,14 +16,14 @@ if [ -f "$CODE_DIR/docker-compose.production.yml" ]; then
     cp "$CODE_DIR/docker-compose.production.yml" "$APP_DIR/docker-compose.yml"
 fi
 
-# Copy .env.production as template (but don't overwrite existing .env)
-if [ -f "$CODE_DIR/.env.production" ] && [ ! -f "$APP_DIR/.env" ]; then
+# Copy .env.production.example as template (but don't overwrite existing .env)
+if [ -f "$CODE_DIR/.env.production.example" ] && [ ! -f "$APP_DIR/.env" ]; then
     echo "  - Creating .env from template (first time only)"
-    cp "$CODE_DIR/.env.production" "$APP_DIR/.env"
+    cp "$CODE_DIR/.env.production.example" "$APP_DIR/.env"
     echo "  ⚠️  IMPORTANT: Edit $APP_DIR/.env and set your database password!"
-elif [ -f "$CODE_DIR/.env.production" ]; then
+elif [ -f "$CODE_DIR/.env.production.example" ]; then
     echo "  - .env already exists, not overwriting"
-    echo "  - You can check .env.production for new variables"
+    echo "  - You can check .env.production.example for new variables"
 fi
 
 # Copy scripts directory
