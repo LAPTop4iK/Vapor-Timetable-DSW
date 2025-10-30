@@ -9,10 +9,10 @@
 import Vapor
 
 /// HTTP-клиент под harmonogramy.dsw.edu.pl
-final class VaporDSWClient: @unchecked Sendable, DSWClient {
+public final class VaporDSWClient: @unchecked Sendable, DSWClient {
 
     private let client: any Client
-    init(client: any Client) { self.client = client }
+    public init(client: any Client) { self.client = client }
 
     // Константное окно — из реального браузерного запроса
     private let custWindowStateJSON =

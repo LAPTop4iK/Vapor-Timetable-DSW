@@ -9,9 +9,14 @@
 import Vapor
 
 /// Базовый сервис получения карточки преподавателя (инфа + расписание)
-struct TeacherDetailsService: Sendable {
+public struct TeacherDetailsService: Sendable {
     let client: any DSWClient
     let parser: any ScheduleParser
+
+    public init(client: any DSWClient, parser: any ScheduleParser) {
+        self.client = client
+        self.parser = parser
+    }
 
     func fetchTeacherCard(
         teacherId: Int?,

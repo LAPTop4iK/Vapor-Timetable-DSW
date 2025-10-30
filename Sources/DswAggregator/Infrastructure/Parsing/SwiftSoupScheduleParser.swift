@@ -10,9 +10,13 @@ import Vapor
 import SwiftSoup
 import Foundation
 
-struct SwiftSoupScheduleParser: ScheduleParser {
+public struct SwiftSoupScheduleParser: ScheduleParser {
 
     let logger: Logger
+
+    public init(logger: Logger) {
+        self.logger = logger
+    }
 
     private func log(_ msg: String, _ data: Any? = nil) {
         if let data {
