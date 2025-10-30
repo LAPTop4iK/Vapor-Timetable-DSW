@@ -133,11 +133,11 @@ public actor SyncAllGroupsRunner {
     // MARK: - Private Methods
 
     private func fetchAllGroups() async throws -> [GroupInfo] {
-        // Fetch all groups by searching with empty query
-        // The university site returns all groups when query is empty or very common
+        // Fetch all groups by searching with "sem" query (same as aggregator default)
+        // The university site returns all groups when query is "sem" (semester groups)
         let htmlResponse = try await httpClient.post(URI(string: "https://harmonogramy.dsw.edu.pl/Plany/ZnajdzGrupe")) { request in
             request.headers.contentType = .urlEncodedForm
-            try request.content.encode(["nazwaGrupy": ""], as: .urlEncodedForm)
+            try request.content.encode(["nazwaGrupy": "sem"], as: .urlEncodedForm)
         }
 
         guard htmlResponse.status == .ok,
