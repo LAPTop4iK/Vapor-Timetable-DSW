@@ -9,16 +9,22 @@ import Vapor
 import Fluent
 import FluentPostgresDriver
 import Foundation
+import App
 
 @main
 struct SyncRunnerApp {
     static func main() async throws {
-        // Setup Vapor app (we need it for HTTP client and database)
+        // Setup Vapor app
         var env = try Environment.detect()
         try LoggingSystem.bootstrap(from: &env)
 
-        let app = try Application(env)
-        defer { app.shutdown() }
+        let app = try await Application.make(env)
+
+        defer {
+            Task {
+                try? await app.asyncShutdown()
+            }
+        }
 
         let logger = app.logger
 
@@ -93,6 +99,7 @@ struct SyncRunnerApp {
         await runner.syncAll()
 
         logger.info("👋 Sync runner finished")
+
+        try await app.asyncShutdown()
     }
 }
-
