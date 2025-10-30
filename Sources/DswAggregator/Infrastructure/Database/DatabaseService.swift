@@ -9,9 +9,9 @@ import Fluent
 import Vapor
 
 public struct DatabaseService: Sendable {
-    let db: Database
+    let db: any Database
 
-    public init(db: Database) {
+    public init(db: any Database) {
         self.db = db
     }
 
