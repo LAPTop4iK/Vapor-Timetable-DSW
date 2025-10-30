@@ -7,7 +7,7 @@
 
 import Fluent
 
-struct CreateGroupsList: AsyncMigration {
+public struct CreateGroupsList: AsyncMigration {
     func prepare(on database: Database) async throws {
         try await database.schema("groups_list")
             .id()

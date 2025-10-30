@@ -10,7 +10,7 @@ import Fluent
 import Foundation
 
 /// Main sync runner that processes all groups and saves to PostgreSQL
-actor SyncAllGroupsRunner {
+public actor SyncAllGroupsRunner {
     private let client: any DSWClient
     private let httpClient: any Client
     private let parser: any ScheduleParser
@@ -22,7 +22,7 @@ actor SyncAllGroupsRunner {
     // In-memory cache for teachers within this sync run
     private var teacherCache: [Int: TeacherCard] = [:]
 
-    init(
+    public init(
         client: any DSWClient,
         httpClient: any Client,
         parser: any ScheduleParser,
@@ -41,7 +41,7 @@ actor SyncAllGroupsRunner {
     }
 
     /// Run the full sync process
-    func syncAll() async {
+    public func syncAll() async {
         let startTime = Date()
         logger.info("🚀 Starting sync of all groups...")
 
@@ -222,13 +222,13 @@ actor SyncAllGroupsRunner {
 }
 
 /// Configuration for sync runner
-struct SyncConfig {
+public struct SyncConfig {
     let semesterFrom: String
     let semesterTo: String
     let delayBetweenGroupsMs: Int  // milliseconds
     let delayBetweenTeachersMs: Int  // milliseconds
 
-    static var `default`: SyncConfig {
+    public static var `default`: SyncConfig {
         return SyncConfig(
             semesterFrom: Environment.get("DSW_DEFAULT_FROM") ?? "2025-09-06",
             semesterTo: Environment.get("DSW_DEFAULT_TO") ?? "2026-02-08",

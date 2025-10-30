@@ -7,7 +7,7 @@
 
 import Fluent
 
-struct CreateTeachers: AsyncMigration {
+public struct CreateTeachers: AsyncMigration {
     func prepare(on database: Database) async throws {
         try await database.schema("teachers")
             .field("id", .int, .identifier(auto: false))

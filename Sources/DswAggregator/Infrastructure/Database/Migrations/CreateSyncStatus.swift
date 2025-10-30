@@ -7,7 +7,7 @@
 
 import Fluent
 
-struct CreateSyncStatus: AsyncMigration {
+public struct CreateSyncStatus: AsyncMigration {
     func prepare(on database: Database) async throws {
         try await database.schema("sync_status")
             .id()

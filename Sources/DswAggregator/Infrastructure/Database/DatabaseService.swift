@@ -8,17 +8,17 @@
 import Fluent
 import Vapor
 
-struct DatabaseService: Sendable {
+public struct DatabaseService: Sendable {
     let db: Database
 
-    init(db: Database) {
+    public init(db: Database) {
         self.db = db
     }
 
     // MARK: - Read Operations
 
     /// Get group aggregate data
-    func getGroupAggregate(groupId: Int) async throws -> AggregateResponse? {
+    public func getGroupAggregate(groupId: Int) async throws -> AggregateResponse? {
         guard let groupModel = try await GroupModel.find(groupId, on: db) else {
             return nil
         }
@@ -42,7 +42,7 @@ struct DatabaseService: Sendable {
     }
 
     /// Get groups list for search
-    func getGroupsList() async throws -> [GroupInfo] {
+    public func getGroupsList() async throws -> [GroupInfo] {
         guard let listModel = try await GroupsListModel.query(on: db)
             .sort(\.$updatedAt, .descending)
             .first() else {
@@ -52,7 +52,7 @@ struct DatabaseService: Sendable {
     }
 
     /// Get latest sync status
-    func getLatestSyncStatus() async throws -> SyncStatusModel? {
+    public func getLatestSyncStatus() async throws -> SyncStatusModel? {
         try await SyncStatusModel.query(on: db)
             .sort(\.$timestamp, .descending)
             .first()
@@ -61,7 +61,7 @@ struct DatabaseService: Sendable {
     // MARK: - Write Operations
 
     /// Save or update group data
-    func saveGroup(
+    public func saveGroup(
         groupId: Int,
         fromDate: String,
         toDate: String,
@@ -83,7 +83,7 @@ struct DatabaseService: Sendable {
     }
 
     /// Save or update teacher data
-    func saveTeacher(card: TeacherCard) async throws {
+    public func saveTeacher(card: TeacherCard) async throws {
         let teacher = TeacherModel(
             id: card.id,
             name: card.name,
@@ -98,7 +98,7 @@ struct DatabaseService: Sendable {
     }
 
     /// Save groups list
-    func saveGroupsList(groups: [GroupInfo]) async throws {
+    public func saveGroupsList(groups: [GroupInfo]) async throws {
         // Delete old entries
         try await GroupsListModel.query(on: db).delete()
 
@@ -108,7 +108,7 @@ struct DatabaseService: Sendable {
     }
 
     /// Save sync status
-    func saveSyncStatus(
+    public func saveSyncStatus(
         timestamp: Date,
         status: String,
         totalGroups: Int,
@@ -132,7 +132,7 @@ struct DatabaseService: Sendable {
     }
 
     /// Batch save teachers
-    func saveTeachers(_ cards: [TeacherCard]) async throws {
+    public func saveTeachers(_ cards: [TeacherCard]) async throws {
         for card in cards {
             try await saveTeacher(card: card)
         }
