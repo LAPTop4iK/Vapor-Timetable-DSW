@@ -11,7 +11,7 @@ import Foundation
 
 enum BackendMode: String {
     case live = "live"      // scrape university site on request
-    case cached = "cached"  // read from Firestore preloaded data
+    case cached = "cached"  // read from PostgreSQL preloaded data
 }
 
 struct AppConfig {
@@ -24,9 +24,8 @@ struct AppConfig {
     let isMockEnabled: Bool
     let backendMode: BackendMode
 
-    // Firestore config
-    let firestoreProjectId: String?
-    let firestoreCredentialsPath: String?
+    // Database config
+    let databaseURL: String?
 
     init() {
         // Read from environment
@@ -56,7 +55,6 @@ struct AppConfig {
             self.backendMode = .live
         }
 
-        self.firestoreProjectId = Environment.get("FIRESTORE_PROJECT_ID")
-        self.firestoreCredentialsPath = Environment.get("FIRESTORE_CREDENTIALS_PATH")
+        self.databaseURL = Environment.get("DATABASE_URL")
     }
 }

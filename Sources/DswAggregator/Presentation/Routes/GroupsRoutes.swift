@@ -33,16 +33,14 @@ struct GroupsRoutes: RouteCollection {
                     intervalType: interval
                 )
             } else if config.backendMode == .cached {
-                // Read from Firestore
-                guard let reader = req.di.firestoreReader else {
-                    throw Abort(.serviceUnavailable, reason: "Firestore not configured")
+                // Read from PostgreSQL
+                let dbService = req.di.makeDatabaseService(req: req)
+
+                guard let cachedData = try await dbService.getGroupAggregate(groupId: gid) else {
+                    throw Abort(.notFound, reason: "Group \(gid) not found in cache")
                 }
 
-                guard let firestoreData = try await reader.getGroupAggregate(groupId: gid) else {
-                    throw Abort(.notFound, reason: "Group \(gid) not found in Firestore")
-                }
-
-                response = firestoreData
+                response = cachedData
             } else {
                 // Live mode: scrape university site
                 let service = req.di.makeCachedAggregationService(req: req)
@@ -71,14 +69,9 @@ struct GroupsRoutes: RouteCollection {
             if config.isMockEnabled {
                 result = MockFactory.makeGroups()
             } else if config.backendMode == .cached {
-                // Read from Firestore
-                guard let reader = req.di.firestoreReader else {
-                    throw Abort(.serviceUnavailable, reason: "Firestore not configured")
-                }
-
-                guard let allGroups = try await reader.getGroupsList() else {
-                    throw Abort(.notFound, reason: "Groups list not found in Firestore")
-                }
+                // Read from PostgreSQL
+                let dbService = req.di.makeDatabaseService(req: req)
+                let allGroups = try await dbService.getGroupsList()
 
                 // Filter by query (case-insensitive)
                 let lowercaseQuery = query.lowercased()

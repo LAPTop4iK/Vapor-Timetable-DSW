@@ -1,0 +1,27 @@
+//
+//  CreateGroups.swift
+//  DswAggregator
+//
+//  Migration to create groups table
+//
+
+import Fluent
+
+struct CreateGroups: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        try await database.schema("groups")
+            .field("group_id", .int, .identifier(auto: false))
+            .field("from_date", .string, .required)
+            .field("to_date", .string, .required)
+            .field("interval_type", .int, .required)
+            .field("group_schedule", .json, .required)
+            .field("teacher_ids", .array(of: .int), .required)
+            .field("group_info", .json, .required)
+            .field("fetched_at", .datetime)
+            .create()
+    }
+
+    func revert(on database: Database) async throws {
+        try await database.schema("groups").delete()
+    }
+}

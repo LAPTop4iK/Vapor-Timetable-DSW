@@ -1,391 +1,304 @@
 # DSW Timetable API - Deployment Guide
 
-This guide explains how to deploy the DSW Timetable API with Firestore preloading architecture on your VPS.
+Simple deployment guide for running the DSW Timetable API with PostgreSQL on VPS.
 
 ## Architecture Overview
-
-The system consists of two components:
-
-1. **Vapor API Server** (`DswAggregator`) - Serves HTTP requests from mobile app
-2. **Sync Runner** (`SyncRunner`) - Periodically syncs data from university to Firestore
-
-### Data Flow
 
 ```
 University Website
        ↓
   SyncRunner (runs 2x daily via cron)
        ↓
-  Firestore
+  PostgreSQL (on VPS)
        ↓
-  Vapor API Server
+  Vapor API Server (on VPS)
        ↓
   Mobile App
 ```
 
-## Prerequisites
+## Two Modes
 
-1. **VPS with Docker** (you already have this)
-2. **Google Cloud Project** with Firestore enabled
-3. **Service Account JSON key** with Firestore permissions
+### Live Mode (`DSW_BACKEND_MODE=live`)
+- API scrapes university site on each request
+- Data always current but slower (~2-5 seconds)
+- Uses in-memory cache (60s for schedule, 5h for aggregate)
+- No database required
 
-## Step 1: Setup Firestore
+### Cached Mode (`DSW_BACKEND_MODE=cached`)
+- API reads from PostgreSQL
+- Fast response (~100-200ms)
+- Data updated 2x daily via SyncRunner
+- Requires PostgreSQL + cron
 
-### 1.1 Create Google Cloud Project
+## Quick Start with Docker Compose
 
-```bash
-# Visit https://console.cloud.google.com
-# Create new project or use existing one
-```
-
-### 1.2 Enable Firestore
-
-```bash
-# In Google Cloud Console:
-# 1. Navigate to Firestore
-# 2. Select "Native mode"
-# 3. Choose europe-west3 (Frankfurt) for lowest latency to Poland
-# 4. Create database
-```
-
-### 1.3 Create Service Account
-
-```bash
-# In Google Cloud Console:
-# 1. Go to IAM & Admin > Service Accounts
-# 2. Create Service Account
-# 3. Grant roles:
-#    - Cloud Datastore User
-# 4. Create JSON key
-# 5. Download the JSON file
-```
-
-### 1.4 Upload Service Account to VPS
-
-```bash
-# On your local machine:
-scp firestore-service-account.json root@your-vps:/srv/secrets/
-
-# On VPS:
-chmod 600 /srv/secrets/firestore-service-account.json
-```
-
-## Step 2: Update Environment Variables
-
-Edit your docker-compose.yml or environment file to add:
-
-```yaml
-services:
-  vapor:
-    environment:
-      # ... existing vars ...
-
-      # Backend mode: "live" or "cached"
-      - DSW_BACKEND_MODE=cached
-
-      # Firestore configuration
-      - FIRESTORE_PROJECT_ID=your-project-id
-      - FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json
-
-    volumes:
-      - /srv/secrets/firestore-service-account.json:/run/secrets/firestore-service-account.json:ro
-```
-
-## Step 3: Build Sync Runner
-
-```bash
-# On VPS, in /srv/app/vapor directory:
-cd /srv/app/vapor
-
-# Make scripts executable
-chmod +x scripts/*.sh
-
-# Build sync-runner image
-./scripts/build-sync.sh
-```
-
-## Step 4: Initial Data Sync
-
-**IMPORTANT:** Before switching to cached mode, you must run the initial sync to populate Firestore.
-
-```bash
-# Run sync manually (this will take ~2-3 hours for 1400 groups):
-./scripts/run-sync.sh
-
-# Monitor progress:
-tail -f /var/log/dsw-sync/latest.log
-```
-
-### What the sync does:
-
-1. Fetches all ~1400 groups from university
-2. For each group:
-   - Downloads semester schedule
-   - Extracts unique teachers
-   - Downloads teacher details and schedules
-   - Saves to Firestore
-3. Updates groups list metadata
-4. Updates sync status
-
-### Throttling:
-
-- 150ms delay between groups (configurable via `SYNC_DELAY_GROUPS_MS`)
-- 100ms delay between teachers (configurable via `SYNC_DELAY_TEACHERS_MS`)
-
-Total runtime: ~2-3 hours depending on university server response time.
-
-## Step 5: Setup Automated Sync
-
-```bash
-# Setup cron to run sync twice daily (3 AM and 3 PM)
-./scripts/setup-cron.sh
-
-# Verify cron is configured:
-crontab -l
-```
-
-## Step 6: Switch API to Cached Mode
-
-### 6.1 Update Environment
-
-```bash
-# Edit docker-compose.yml or .env file:
-DSW_BACKEND_MODE=cached
-```
-
-### 6.2 Restart Vapor
+### 1. Clone and Configure
 
 ```bash
 cd /srv/app
-docker-compose restart vapor
+git clone <your-repo>
+cd Vapor-Timetable-DSW
+
+# Create .env from example
+cp .env.example .env
+
+# Edit .env and set secure password
+nano .env
 ```
 
-### 6.3 Verify
+### 2. Start Services
 
 ```bash
-# Check logs:
-docker logs -f vapor
+# Start PostgreSQL + Vapor
+docker-compose up -d
 
-# Should see:
-# "Firestore initialized for project: your-project-id"
-
-# Test API:
-curl https://api.dsw.wtf/groups/search?q=sem
-curl https://api.dsw.wtf/api/groups/123/aggregate
+# Check logs
+docker-compose logs -f vapor
+docker-compose logs -f postgres
 ```
 
-## Step 7: Monitoring
+That's it! API is running at http://localhost:8080
 
-### Check Sync Logs
+### 3. Initial Sync (for cached mode)
 
 ```bash
-# Latest sync log:
-cat /var/log/dsw-sync/latest.log
+# Build sync runner image
+./scripts/build-sync.sh
 
-# All sync logs:
-ls -lh /var/log/dsw-sync/
+# Run initial sync (takes ~2-3 hours for 1400 groups)
+./scripts/run-sync.sh
 
-# Watch live sync:
+# Monitor progress
 tail -f /var/log/dsw-sync/latest.log
 ```
 
-### Check Sync Status
-
-The sync status is stored in Firestore at `/metadata/lastSync`:
-
-```json
-{
-  "timestamp": "2025-01-15T03:00:00Z",
-  "status": "ok",
-  "totalGroups": 1400,
-  "processedGroups": 1400,
-  "failedGroups": 0,
-  "duration": 7200.5,
-  "startedAt": "2025-01-15T01:00:00Z"
-}
-```
-
-### Manual Sync Trigger
+### 4. Setup Cron (optional, for cached mode)
 
 ```bash
-# Run sync manually anytime:
-./scripts/run-sync.sh
+# Setup automatic sync 2x daily (3 AM and 3 PM)
+./scripts/setup-cron.sh
 
-# Or via Docker directly:
-docker run --rm \
-    -e FIRESTORE_PROJECT_ID=your-project-id \
-    -e FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json \
-    -v /srv/secrets/firestore-service-account.json:/run/secrets/firestore-service-account.json:ro \
-    dsw-sync-runner:latest
+# Verify
+crontab -l
 ```
 
-## Firestore Collections Structure
+## Environment Variables
 
-```
-/groups/{groupId}
-  - groupId: Int
-  - from: String
-  - to: String
-  - intervalType: Int
-  - groupSchedule: [ScheduleEvent]
-  - teacherIds: [Int]
-  - groupInfo: { code, name, tracks, program, faculty }
-  - fetchedAt: String
-
-/teachers/{teacherId}
-  - id: Int
-  - name: String
-  - title: String
-  - department: String
-  - email: String
-  - phone: String
-  - aboutHTML: String
-  - schedule: [ScheduleEvent]
-  - fetchedAt: String
-
-/metadata/groupsList
-  - groups: [GroupInfo]
-  - updatedAt: String
-
-/metadata/lastSync
-  - timestamp: String
-  - status: String ("ok" | "error" | "in_progress")
-  - totalGroups: Int
-  - processedGroups: Int
-  - failedGroups: Int
-  - errorMessage: String?
-  - duration: Double
-  - startedAt: String
-```
-
-## API Endpoints
-
-All endpoints maintain the same response format as before:
-
-### `GET /api/groups/:groupId/aggregate`
-
-**Before (live mode):** Scrapes university site on each request
-**After (cached mode):** Reads from Firestore
-
-Returns:
-- Group schedule
-- **ALL teachers** (not just from this group)
-- Group metadata
-
-### `GET /groups/search?q=query`
-
-**Before (live mode):** Searches university site
-**After (cached mode):** Filters Firestore groups list
-
-### `GET /api/groups/:groupId/schedule`
-
-**Always live** - fetches current day schedule from university
-Uses in-memory cache (TTL: 60 seconds)
-
-## Environment Variables Reference
-
-### Vapor API Server
+### API Server (.env)
 
 ```bash
-# Runtime mode
-ENV=production
+# PostgreSQL password (required)
+POSTGRES_PASSWORD=your_secure_password
 
 # Backend mode
-DSW_BACKEND_MODE=live          # or "cached"
-
-# Default semester dates
-DSW_DEFAULT_FROM=2025-09-06
-DSW_DEFAULT_TO=2026-02-08
-DSW_DEFAULT_INTERVAL=semester   # week / month / semester
-
-# Cache TTLs (seconds)
-DSW_TTL_SCHEDULE_SECS=60
-DSW_TTL_SEARCH_SECS=259200
-DSW_TTL_AGGREGATE_SECS=18000
-DSW_TTL_TEACHER_SECS=18000
-
-# Firestore
-FIRESTORE_PROJECT_ID=your-project-id
-FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json
-```
-
-### Sync Runner
-
-```bash
-# Firestore (required)
-FIRESTORE_PROJECT_ID=your-project-id
-FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json
+DSW_BACKEND_MODE=cached  # or "live"
 
 # Semester dates
 DSW_DEFAULT_FROM=2025-09-06
 DSW_DEFAULT_TO=2026-02-08
 
-# Throttling (milliseconds)
+# Cache TTLs (seconds)
+DSW_TTL_SCHEDULE_SECS=60
+DSW_TTL_AGGREGATE_SECS=18000
+
+# Sync delays (milliseconds)
 SYNC_DELAY_GROUPS_MS=150
 SYNC_DELAY_TEACHERS_MS=100
 ```
 
+## Database Schema
+
+PostgreSQL stores 4 tables:
+
+- **groups** - group schedules and metadata
+- **teachers** - teacher info and schedules
+- **groups_list** - searchable groups list
+- **sync_status** - last sync status
+
+Migrations run automatically on startup.
+
+## API Endpoints
+
+All endpoints work in both live and cached modes:
+
+### `GET /api/groups/:groupId/aggregate`
+Full group info: schedule + all teachers
+
+Query params:
+- `from` - start date (YYYY-MM-DD)
+- `to` - end date (YYYY-MM-DD)
+- `type` - interval (0=week, 1=month, 2=semester)
+
+Example:
+```bash
+curl http://localhost:8080/api/groups/123/aggregate
+```
+
+### `GET /groups/search?q=query`
+Search groups by name/code/program/faculty
+
+Example:
+```bash
+curl http://localhost:8080/groups/search?q=informatyka
+```
+
+### `GET /api/groups/:groupId/schedule`
+Current day schedule (always live, 60s cache)
+
+## Sync Process
+
+SyncRunner:
+1. Fetches all ~1400 groups from university
+2. For each group:
+   - Downloads semester schedule
+   - Extracts unique teachers (~500 total)
+   - Downloads teacher details
+   - Saves to PostgreSQL
+3. Updates groups list
+4. Updates sync status
+
+Runtime: ~2-3 hours with throttling (150ms between groups)
+
+## Monitoring
+
+### Check Logs
+
+```bash
+# API logs
+docker logs -f dsw-vapor
+
+# Postgres logs
+docker logs -f dsw-postgres
+
+# Sync logs
+cat /var/log/dsw-sync/latest.log
+ls -lh /var/log/dsw-sync/
+```
+
+### Check Sync Status
+
+```bash
+# Connect to postgres
+docker exec -it dsw-postgres psql -U vapor -d dsw_timetable
+
+# Check last sync
+SELECT timestamp, status, total_groups, processed_groups, failed_groups, duration
+FROM sync_status
+ORDER BY timestamp DESC
+LIMIT 1;
+
+# Check data counts
+SELECT COUNT(*) FROM groups;
+SELECT COUNT(*) FROM teachers;
+```
+
+### Manual Sync
+
+```bash
+# Run sync anytime
+./scripts/run-sync.sh
+```
+
 ## Troubleshooting
 
-### Sync fails with "403 Forbidden"
+### API returns 404 for groups
 
-- Check service account has correct permissions
-- Verify `FIRESTORE_PROJECT_ID` matches your GCP project
-- Ensure JSON key file is readable
+```bash
+# 1. Check if sync completed
+cat /var/log/dsw-sync/latest.log
+
+# 2. Check database
+docker exec -it dsw-postgres psql -U vapor -d dsw_timetable -c "SELECT COUNT(*) FROM groups;"
+
+# 3. Verify backend mode
+docker logs dsw-vapor | grep "Backend mode"
+```
 
 ### Sync is too slow
 
 Increase delays to avoid rate limiting:
+
 ```bash
+# Edit .env
 SYNC_DELAY_GROUPS_MS=200
 SYNC_DELAY_TEACHERS_MS=150
+
+# Rebuild and restart
+docker-compose down
+./scripts/build-sync.sh
 ```
 
-### API returns 404 for groups
+### Database connection failed
 
-- Ensure initial sync completed successfully
-- Check `/metadata/lastSync` in Firestore
-- Verify `DSW_BACKEND_MODE=cached`
+```bash
+# Check postgres is running
+docker ps | grep postgres
 
-### Mobile app shows old data
+# Check connection
+docker exec -it dsw-postgres pg_isready -U vapor
 
-- Check last sync timestamp
-- Verify cron is running: `systemctl status cron`
-- Check sync logs: `cat /var/log/dsw-sync/latest.log`
+# Restart services
+docker-compose restart
+```
+
+## Backup
+
+### Database Backup
+
+```bash
+# Backup
+docker exec dsw-postgres pg_dump -U vapor dsw_timetable > backup.sql
+
+# Restore
+cat backup.sql | docker exec -i dsw-postgres psql -U vapor dsw_timetable
+```
+
+### Volume Backup
+
+```bash
+# Stop services
+docker-compose down
+
+# Backup volume
+docker run --rm -v vapor-timetable-dsw_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres-backup.tar.gz /data
+
+# Restore
+docker run --rm -v vapor-timetable-dsw_postgres_data:/data -v $(pwd):/backup alpine tar xzf /backup/postgres-backup.tar.gz -C /
+```
+
+## Production Checklist
+
+- [ ] Set secure POSTGRES_PASSWORD in .env
+- [ ] Configure firewall (allow 8080, block 5432 from outside)
+- [ ] Setup HTTPS reverse proxy (nginx/traefik)
+- [ ] Configure log rotation
+- [ ] Setup monitoring (uptime, disk space)
+- [ ] Schedule regular database backups
+- [ ] Test sync runs successfully
 
 ## Rollback to Live Mode
 
-If you need to rollback to scraping live:
+If issues with cached mode:
 
 ```bash
-# 1. Update environment:
+# 1. Edit .env
 DSW_BACKEND_MODE=live
 
-# 2. Restart Vapor:
+# 2. Restart API
 docker-compose restart vapor
 ```
 
-API will immediately switch back to scraping university site on each request.
+API immediately switches to scraping university site.
 
-## Costs Estimate
+## Resources
 
-### Firestore (Native Mode)
-
-For ~1400 groups + ~500 teachers:
-
-- **Storage:** ~50MB = $0.01/month
-- **Reads:** ~10,000/day = $0.40/month
-- **Writes:** 2 syncs/day × 2000 docs = $0.20/month
-
-**Total:** ~$0.60/month (well within free tier: $0.60/month free)
-
-### Network
-
-VPS in Poland → Firestore in Frankfurt: minimal latency (~10-20ms)
+- Vapor Docs: https://docs.vapor.codes
+- Fluent Docs: https://docs.vapor.codes/fluent/overview/
+- PostgreSQL Docs: https://www.postgresql.org/docs/
 
 ## Support
 
-For issues or questions:
-- Check logs: `/var/log/dsw-sync/`
-- Review Firestore console: https://console.cloud.google.com/firestore
-- Verify cron: `crontab -l`
+Check logs first:
+- API: `docker logs dsw-vapor`
+- Database: `docker logs dsw-postgres`
+- Sync: `/var/log/dsw-sync/latest.log`

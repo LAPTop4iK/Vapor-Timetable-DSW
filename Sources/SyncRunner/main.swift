@@ -2,16 +2,18 @@
 //  main.swift
 //  SyncRunner
 //
-//  Executable entrypoint for syncing all groups to Firestore
+//  Executable entrypoint for syncing all groups to PostgreSQL
 //
 
 import Vapor
+import Fluent
+import FluentPostgresDriver
 import Foundation
 
 @main
 struct SyncRunnerApp {
     static func main() async throws {
-        // Setup Vapor app (we need it for HTTP client, but won't start the server)
+        // Setup Vapor app (we need it for HTTP client and database)
         var env = try Environment.detect()
         try LoggingSystem.bootstrap(from: &env)
 
@@ -25,38 +27,54 @@ struct SyncRunnerApp {
         // Load configuration
         let config = SyncConfig.default
 
-        guard let projectId = Environment.get("FIRESTORE_PROJECT_ID") else {
-            logger.error("❌ FIRESTORE_PROJECT_ID not set")
-            throw Abort(.internalServerError, reason: "FIRESTORE_PROJECT_ID required")
+        // Configure database
+        if let databaseURL = Environment.get("DATABASE_URL") {
+            try app.databases.use(.postgres(url: databaseURL), as: .psql)
+            logger.info("✅ PostgreSQL configured from DATABASE_URL")
+        } else {
+            // Fallback to individual env vars
+            let hostname = Environment.get("DB_HOST") ?? "localhost"
+            let port = Int(Environment.get("DB_PORT") ?? "5432") ?? 5432
+            let username = Environment.get("DB_USER") ?? "vapor"
+            let password = Environment.get("DB_PASSWORD") ?? ""
+            let database = Environment.get("DB_NAME") ?? "dsw_timetable"
+
+            app.databases.use(
+                .postgres(
+                    hostname: hostname,
+                    port: port,
+                    username: username,
+                    password: password,
+                    database: database
+                ),
+                as: .psql
+            )
+            logger.info("✅ PostgreSQL configured: \(username)@\(hostname):\(port)/\(database)")
         }
 
-        guard let credPath = Environment.get("FIRESTORE_CREDENTIALS_PATH") else {
-            logger.error("❌ FIRESTORE_CREDENTIALS_PATH not set")
-            throw Abort(.internalServerError, reason: "FIRESTORE_CREDENTIALS_PATH required")
-        }
+        // Register migrations
+        app.migrations.add(CreateGroups())
+        app.migrations.add(CreateTeachers())
+        app.migrations.add(CreateGroupsList())
+        app.migrations.add(CreateSyncStatus())
+
+        // Run migrations
+        logger.info("🔄 Running database migrations...")
+        try await app.autoMigrate()
+        logger.info("✅ Migrations completed")
 
         logger.info("📝 Configuration:")
-        logger.info("  - Project ID: \(projectId)")
-        logger.info("  - Credentials: \(credPath)")
         logger.info("  - Semester: \(config.semesterFrom) to \(config.semesterTo)")
         logger.info("  - Delay between groups: \(config.delayBetweenGroupsMs)ms")
         logger.info("  - Delay between teachers: \(config.delayBetweenTeachersMs)ms")
 
-        // Initialize Firestore
-        logger.info("🔐 Initializing Firestore...")
-        let credentials = try ServiceAccountCredentials.load(from: credPath)
+        // Initialize database service
+        guard let db = app.db as? Database else {
+            logger.error("❌ Database not configured")
+            throw Abort(.internalServerError, reason: "Database not configured")
+        }
 
-        let firestoreClient = try FirestoreClient(
-            projectId: projectId,
-            credentials: credentials,
-            client: app.client,
-            logger: logger
-        )
-
-        let firestoreWriter = FirestoreWriter(
-            client: firestoreClient,
-            logger: logger
-        )
+        let dbService = DatabaseService(db: db)
 
         // Initialize services
         let dswClient = VaporDSWClient(client: app.client)
@@ -69,7 +87,7 @@ struct SyncRunnerApp {
             httpClient: app.client,
             parser: parser,
             teacherService: teacherService,
-            writer: firestoreWriter,
+            dbService: dbService,
             logger: logger,
             config: config
         )
@@ -79,3 +97,4 @@ struct SyncRunnerApp {
         logger.info("👋 Sync runner finished")
     }
 }
+

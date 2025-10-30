@@ -7,7 +7,7 @@ REST API для мобильного приложения расписания D
 Проект состоит из двух компонентов:
 
 1. **Vapor API Server** (`DswAggregator`) - HTTP API для мобильного приложения
-2. **Sync Runner** (`SyncRunner`) - Периодическая синхронизация данных в Firestore
+2. **Sync Runner** (`SyncRunner`) - Периодическая синхронизация данных в PostgreSQL
 
 ### Режимы работы
 
@@ -17,9 +17,9 @@ REST API для мобильного приложения расписания D
 - Использует in-memory кэш для оптимизации
 
 #### Cached Mode (DSW_BACKEND_MODE=cached)
-- API читает предзагруженные данные из Firestore
+- API читает предзагруженные данные из PostgreSQL
 - Быстрый ответ, но данные обновляются по расписанию (2 раза в день)
-- Sync Runner собирает данные с сайта университета и сохраняет в Firestore
+- Sync Runner собирает данные с сайта университета и сохраняет в PostgreSQL
 
 ## API Endpoints
 
@@ -70,18 +70,15 @@ docker run -p 8080:8080 \
 
 ## Production Deployment
 
-См. [DEPLOYMENT.md](DEPLOYMENT.md) для детальной инструкции по развертыванию с Firestore.
+См. [DEPLOYMENT.md](DEPLOYMENT.md) для детальной инструкции по развертыванию с PostgreSQL.
 
 ### Краткая инструкция:
 
-1. Создать проект в Google Cloud с Firestore
-2. Скачать service account JSON ключ
-3. Загрузить на VPS в `/srv/secrets/firestore-service-account.json`
-4. Настроить environment variables
-5. Собрать sync-runner: `./scripts/build-sync.sh`
-6. Запустить первичную синхронизацию: `./scripts/run-sync.sh`
-7. Настроить cron: `./scripts/setup-cron.sh`
-8. Переключить API в cached mode
+1. Создать .env файл из .env.example
+2. Запустить `docker-compose up -d`
+3. Собрать sync-runner: `./scripts/build-sync.sh`
+4. Запустить первичную синхронизацию: `./scripts/run-sync.sh`
+5. Настроить cron: `./scripts/setup-cron.sh` (опционально)
 
 ## Environment Variables
 
@@ -104,15 +101,13 @@ DSW_TTL_SEARCH_SECS=259200
 DSW_TTL_AGGREGATE_SECS=18000
 DSW_TTL_TEACHER_SECS=18000
 
-# Firestore (только для cached mode)
-FIRESTORE_PROJECT_ID=your-project-id
-FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json
+# Database (только для cached mode)
+DATABASE_URL=postgres://vapor:password@localhost:5432/dsw_timetable
 ```
 
 ### Sync Runner
 ```bash
-FIRESTORE_PROJECT_ID=your-project-id
-FIRESTORE_CREDENTIALS_PATH=/run/secrets/firestore-service-account.json
+DATABASE_URL=postgres://vapor:password@localhost:5432/dsw_timetable
 SYNC_DELAY_GROUPS_MS=150              # Задержка между группами (ms)
 SYNC_DELAY_TEACHERS_MS=100            # Задержка между преподавателями (ms)
 ```
@@ -128,11 +123,10 @@ Sources/
 │   │   └── Utils/                    # Utilities
 │   ├── Infrastructure/
 │   │   ├── Clients/                  # HTTP clients for university site
-│   │   ├── Firebase/                 # Firestore integration
-│   │   │   ├── Models/               # Firestore document models
-│   │   │   ├── FirestoreClient.swift # Low-level Firestore REST API
-│   │   │   ├── FirestoreReader.swift # High-level read operations
-│   │   │   └── FirestoreWriter.swift # High-level write operations
+│   │   ├── Database/                 # PostgreSQL integration
+│   │   │   ├── Models/               # Fluent models
+│   │   │   ├── Migrations/           # Database migrations
+│   │   │   └── DatabaseService.swift # High-level database operations
 │   │   ├── Parsing/                  # HTML parsers (SwiftSoup)
 │   │   └── Support/                  # Helpers
 │   ├── Services/                     # Business logic
@@ -155,30 +149,26 @@ scripts/
 └── setup-cron.sh                     # Configure cron job
 ```
 
-## Firestore Schema
+## Database Schema
 
-```
-/groups/{groupId}
-  - groupId, from, to, intervalType
-  - groupSchedule: [ScheduleEvent]
-  - teacherIds: [Int]
-  - groupInfo: { code, name, tracks, program, faculty }
-  - fetchedAt: timestamp
+PostgreSQL tables:
 
-/teachers/{teacherId}
-  - id, name, title, department, email, phone
-  - aboutHTML: String
-  - schedule: [ScheduleEvent]
-  - fetchedAt: timestamp
+**groups**
+- group_id (PK), from_date, to_date, interval_type
+- group_schedule (JSONB), teacher_ids (INT[])
+- group_info (JSONB), fetched_at (TIMESTAMP)
 
-/metadata/groupsList
-  - groups: [GroupInfo]
-  - updatedAt: timestamp
+**teachers**
+- id (PK), name, title, department, email, phone
+- about_html (TEXT), schedule (JSONB)
+- fetched_at (TIMESTAMP)
 
-/metadata/lastSync
-  - timestamp, status, totalGroups, processedGroups, failedGroups
-  - errorMessage, duration, startedAt
-```
+**groups_list**
+- id (PK), groups (JSONB), updated_at (TIMESTAMP)
+
+**sync_status**
+- id (PK), timestamp, status, total_groups, processed_groups
+- failed_groups, error_message, duration, started_at
 
 ## Development
 
@@ -194,8 +184,7 @@ swift run DswAggregator serve
 
 ### Run Sync Runner
 ```bash
-export FIRESTORE_PROJECT_ID=your-project-id
-export FIRESTORE_CREDENTIALS_PATH=/path/to/service-account.json
+export DATABASE_URL=postgres://vapor:password@localhost:5432/dsw_timetable
 swift run SyncRunner
 ```
 
@@ -208,9 +197,9 @@ swift test
 
 - **Swift 6.0** - Language
 - **Vapor 4.115+** - Web framework
+- **Fluent** - ORM
+- **PostgreSQL 16** - Database
 - **SwiftSoup** - HTML parsing
-- **JWTKit** - Service account authentication
-- **Firestore** - Database (via REST API)
 - **Docker** - Containerization
 
 ## License

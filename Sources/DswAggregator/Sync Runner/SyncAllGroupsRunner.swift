@@ -2,19 +2,20 @@
 //  SyncAllGroupsRunner.swift
 //  DswAggregator
 //
-//  Main runner for synchronizing all groups to Firestore
+//  Main runner for synchronizing all groups to PostgreSQL
 //
 
 import Vapor
+import Fluent
 import Foundation
 
-/// Main sync runner that processes all groups and saves to Firestore
+/// Main sync runner that processes all groups and saves to PostgreSQL
 actor SyncAllGroupsRunner {
     private let client: any DSWClient
     private let httpClient: any Client
     private let parser: any ScheduleParser
     private let teacherService: TeacherDetailsService
-    private let writer: FirestoreWriter
+    private let dbService: DatabaseService
     private let logger: Logger
     private let config: SyncConfig
 
@@ -26,7 +27,7 @@ actor SyncAllGroupsRunner {
         httpClient: any Client,
         parser: any ScheduleParser,
         teacherService: TeacherDetailsService,
-        writer: FirestoreWriter,
+        dbService: DatabaseService,
         logger: Logger,
         config: SyncConfig
     ) {
@@ -34,7 +35,7 @@ actor SyncAllGroupsRunner {
         self.httpClient = httpClient
         self.parser = parser
         self.teacherService = teacherService
-        self.writer = writer
+        self.dbService = dbService
         self.logger = logger
         self.config = config
     }
@@ -45,19 +46,17 @@ actor SyncAllGroupsRunner {
         logger.info("🚀 Starting sync of all groups...")
 
         // Mark sync as in progress
-        let statusInProgress = SyncStatusDocument(
-            timestamp: ISO8601DateFormatter().string(from: Date()),
-            status: "in_progress",
-            totalGroups: 0,
-            processedGroups: 0,
-            failedGroups: 0,
-            errorMessage: nil,
-            duration: 0,
-            startedAt: ISO8601DateFormatter().string(from: startTime)
-        )
-
         do {
-            try await writer.updateSyncStatus(statusInProgress)
+            try await dbService.saveSyncStatus(
+                timestamp: Date(),
+                status: "in_progress",
+                totalGroups: 0,
+                processedGroups: 0,
+                failedGroups: 0,
+                errorMessage: nil,
+                duration: 0,
+                startedAt: startTime
+            )
 
             // 1. Get all groups
             logger.info("📋 Fetching all groups...")
@@ -90,22 +89,20 @@ actor SyncAllGroupsRunner {
 
             // 3. Save groups list
             logger.info("💾 Saving groups list...")
-            try await writer.saveGroupsList(allGroups)
+            try await dbService.saveGroupsList(groups: allGroups)
 
             // 4. Final sync status
             let duration = Date().timeIntervalSince(startTime)
-            let finalStatus = SyncStatusDocument(
-                timestamp: ISO8601DateFormatter().string(from: Date()),
+            try await dbService.saveSyncStatus(
+                timestamp: Date(),
                 status: "ok",
                 totalGroups: allGroups.count,
                 processedGroups: processedCount,
                 failedGroups: failedCount,
                 errorMessage: nil,
                 duration: duration,
-                startedAt: ISO8601DateFormatter().string(from: startTime)
+                startedAt: startTime
             )
-
-            try await writer.updateSyncStatus(finalStatus)
 
             logger.info("✅ Sync completed successfully!")
             logger.info("📊 Stats: \(processedCount) groups processed, \(failedCount) failed, \(allTeacherIds.count) unique teachers, duration: \(Int(duration))s")
@@ -113,19 +110,18 @@ actor SyncAllGroupsRunner {
         } catch {
             // Save error status
             let duration = Date().timeIntervalSince(startTime)
-            let errorStatus = SyncStatusDocument(
-                timestamp: ISO8601DateFormatter().string(from: Date()),
-                status: "error",
-                totalGroups: 0,
-                processedGroups: 0,
-                failedGroups: 0,
-                errorMessage: error.localizedDescription,
-                duration: duration,
-                startedAt: ISO8601DateFormatter().string(from: startTime)
-            )
 
             do {
-                try await writer.updateSyncStatus(errorStatus)
+                try await dbService.saveSyncStatus(
+                    timestamp: Date(),
+                    status: "error",
+                    totalGroups: 0,
+                    processedGroups: 0,
+                    failedGroups: 0,
+                    errorMessage: error.localizedDescription,
+                    duration: duration,
+                    startedAt: startTime
+                )
             } catch {
                 logger.error("Failed to save error status: \(error)")
             }
@@ -158,8 +154,6 @@ actor SyncAllGroupsRunner {
     }
 
     private func processGroup(_ group: GroupInfo) async throws -> Set<Int> {
-        let fetchedAt = ISO8601DateFormatter().string(from: Date())
-
         // 1. Get group schedule for the semester
         let scheduleHTML = try await client.groupScheduleHTML(
             groupId: group.groupId,
@@ -188,8 +182,8 @@ actor SyncAllGroupsRunner {
                     )
                     teacherCache[teacherId] = card
 
-                    // Save teacher to Firestore immediately
-                    try await writer.saveTeacher(card, fetchedAt: fetchedAt)
+                    // Save teacher to PostgreSQL immediately
+                    try await dbService.saveTeacher(card: card)
 
                     // Small delay between teacher requests
                     try await Task.sleep(nanoseconds: UInt64(config.delayBetweenTeachersMs) * 1_000_000)
@@ -200,18 +194,17 @@ actor SyncAllGroupsRunner {
             }
         }
 
-        // 4. Save group to Firestore
+        // 4. Save group to PostgreSQL
         let teacherIds = Array(uniqueTeachers).sorted()
 
-        try await writer.saveGroup(
+        try await dbService.saveGroup(
             groupId: group.groupId,
-            groupInfo: group,
-            schedule: schedule,
+            fromDate: config.semesterFrom,
+            toDate: config.semesterTo,
+            intervalType: IntervalType.semester.rawValue,
+            groupSchedule: schedule,
             teacherIds: teacherIds,
-            from: config.semesterFrom,
-            to: config.semesterTo,
-            intervalType: .semester,
-            fetchedAt: fetchedAt
+            groupInfo: group
         )
 
         return uniqueTeachers
