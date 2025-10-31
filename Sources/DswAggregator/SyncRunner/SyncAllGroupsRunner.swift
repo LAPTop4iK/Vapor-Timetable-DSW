@@ -68,7 +68,7 @@ public actor SyncAllGroupsRunner {
             var failedCount = 0
             var allTeacherIds: Set<Int> = []
 
-            for (index, group) in allGroups.enumerated() {
+            for (index, group) in allGroups[0...10].enumerated() {
                 do {
                     logger.info("[\(index + 1)/\(allGroups.count)] Processing group \(group.groupId): \(group.name)")
 
