@@ -164,21 +164,24 @@ public actor SyncAllGroupsRunner {
 
         let schedule = try parser.parseSchedule(scheduleHTML)
 
-        // 2. Extract unique teachers from schedule
-        var uniqueTeachers: Set<Int> = []
+        // 2. Extract unique teachers from schedule (with names as fallback)
+        var uniqueTeachers: [Int: String] = [:] // teacherId -> teacherName
         for event in schedule {
             if let teacherId = event.teacherId {
-                uniqueTeachers.insert(teacherId)
+                // Keep first occurrence of name for each teacher ID
+                if uniqueTeachers[teacherId] == nil {
+                    uniqueTeachers[teacherId] = event.teacherName
+                }
             }
         }
 
         // 3. Fetch teacher details (with caching)
-        for teacherId in uniqueTeachers {
+        for (teacherId, teacherName) in uniqueTeachers {
             if teacherCache[teacherId] == nil {
                 do {
                     let card = try await fetchTeacherCard(
                         teacherId: teacherId,
-                        fallbackName: nil
+                        fallbackName: teacherName
                     )
                     teacherCache[teacherId] = card
 
@@ -195,7 +198,7 @@ public actor SyncAllGroupsRunner {
         }
 
         // 4. Save group to PostgreSQL
-        let teacherIds = Array(uniqueTeachers).sorted()
+        let teacherIds = Array(uniqueTeachers.keys).sorted()
 
         try await dbService.saveGroup(
             groupId: group.groupId,
@@ -207,7 +210,7 @@ public actor SyncAllGroupsRunner {
             groupInfo: group
         )
 
-        return uniqueTeachers
+        return Set(uniqueTeachers.keys)
     }
 
     private func fetchTeacherCard(teacherId: Int, fallbackName: String?) async throws -> TeacherCard {
