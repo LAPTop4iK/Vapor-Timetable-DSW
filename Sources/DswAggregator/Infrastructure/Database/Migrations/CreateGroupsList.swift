@@ -13,7 +13,7 @@ public struct CreateGroupsList: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema("groups_list")
             .id()
-            .field("groups", .json, .required)
+            .field("groups", .custom("TEXT"), .required)
             .field("updated_at", .datetime)
             .create()
     }
