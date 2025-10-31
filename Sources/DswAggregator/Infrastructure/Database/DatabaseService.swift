@@ -57,7 +57,7 @@ public struct DatabaseService: Sendable {
             .first() else {
             return []
         }
-        return listModel.groups
+        return listModel.getGroups()
     }
 
     /// Get latest sync status

@@ -179,7 +179,7 @@ query_5() {
         COUNT(DISTINCT department) as unique_departments,
         COUNT(*) FILTER (WHERE email IS NOT NULL) as teachers_with_email,
         COUNT(*) FILTER (WHERE phone IS NOT NULL) as teachers_with_phone,
-        COUNT(*) FILTER (WHERE schedule_json != '[]') as teachers_with_schedule
+        COUNT(*) FILTER (WHERE schedule != '[]') as teachers_with_schedule
     FROM teachers;
     "
     wait_for_user
@@ -196,11 +196,11 @@ query_6() {
         COALESCE(title, '-') as title,
         COALESCE(department, '-') as department,
         CASE
-            WHEN schedule_json = '[]' THEN 0
-            ELSE jsonb_array_length(schedule_json::jsonb)
+            WHEN schedule = '[]' THEN 0
+            ELSE jsonb_array_length(schedule::jsonb)
         END as events_count
     FROM teachers
-    WHERE schedule_json IS NOT NULL
+    WHERE schedule IS NOT NULL
     ORDER BY events_count DESC
     LIMIT 10;
     "
@@ -218,8 +218,8 @@ query_7() {
         COALESCE(title, '-') as title,
         COALESCE(department, '-') as department
     FROM teachers
-    WHERE schedule_json = '[]'
-       OR jsonb_array_length(schedule_json::jsonb) = 0
+    WHERE schedule = '[]'
+       OR jsonb_array_length(schedule::jsonb) = 0
     ORDER BY name;
     "
     wait_for_user
@@ -287,7 +287,7 @@ query_11() {
     SELECT
         COUNT(*) as total_groups,
         COUNT(DISTINCT group_info->>'faculty') as unique_faculties,
-        COUNT(*) FILTER (WHERE group_schedule_json != '[]') as groups_with_schedule
+        COUNT(*) FILTER (WHERE group_schedule != '[]') as groups_with_schedule
     FROM groups;
     "
     wait_for_user
@@ -302,7 +302,7 @@ query_12() {
         group_id,
         group_info->>'code' as code,
         group_info->>'name' as name,
-        jsonb_array_length(group_schedule_json::jsonb) as events_count
+        jsonb_array_length(group_schedule::jsonb) as events_count
     FROM groups
     ORDER BY events_count DESC
     LIMIT 10;
@@ -321,8 +321,8 @@ query_13() {
         group_info->>'name' as name,
         group_info->>'faculty' as faculty
     FROM groups
-    WHERE group_schedule_json = '[]'
-       OR jsonb_array_length(group_schedule_json::jsonb) = 0
+    WHERE group_schedule = '[]'
+       OR jsonb_array_length(group_schedule::jsonb) = 0
     ORDER BY group_info->>'name';
     "
     wait_for_user
@@ -338,9 +338,9 @@ query_14() {
         g1.group_info->>'name' as group1_name,
         g2.group_id as group2_id,
         g2.group_info->>'name' as group2_name,
-        jsonb_array_length(g1.group_schedule_json::jsonb) as events_count
+        jsonb_array_length(g1.group_schedule::jsonb) as events_count
     FROM groups g1
-    JOIN groups g2 ON g1.group_schedule_json = g2.group_schedule_json
+    JOIN groups g2 ON g1.group_schedule = g2.group_schedule
         AND g1.group_id < g2.group_id
     ORDER BY events_count DESC;
     "
@@ -375,7 +375,7 @@ query_16() {
         group_info->>'code' as code,
         group_info->>'name' as name,
         group_info->>'faculty' as faculty,
-        jsonb_array_length(group_schedule_json::jsonb) as events_count
+        jsonb_array_length(group_schedule::jsonb) as events_count
     FROM groups
     WHERE group_info->>'name' ILIKE '%$search_term%'
        OR group_info->>'code' ILIKE '%$search_term%'
@@ -434,8 +434,8 @@ query_19() {
         SELECT
             id,
             CASE
-                WHEN schedule_json = '[]' THEN 0
-                ELSE jsonb_array_length(schedule_json::jsonb)
+                WHEN schedule = '[]' THEN 0
+                ELSE jsonb_array_length(schedule::jsonb)
             END as events_count
         FROM teachers
     ) t;
