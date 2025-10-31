@@ -68,6 +68,8 @@ show_menu() {
     echo -e "${BOLD}🔧 СЛУЖЕБНОЕ${NC}"
     echo -e "  ${GREEN}21${NC}) Прямое подключение к PostgreSQL (psql)"
     echo -e "  ${GREEN}22${NC}) Выполнить произвольный SQL запрос"
+    echo -e "  ${GREEN}23${NC}) Группы с одинаковым НЕ пустым расписанием (кластеры)"
+    echo -e "  ${GREEN}24${NC}) Группы с одинаковым пустым расписанием"
     echo ""
     echo -e "  ${RED}0${NC})  Выход"
     echo ""
@@ -485,6 +487,63 @@ query_22() {
     wait_for_user
 }
 
+query_23() {
+    show_header
+    echo -e "${BOLD}🎓 Группы с одинаковым НЕ пустым расписанием (кластеры)${NC}"
+    echo ""
+    execute_query "
+    WITH schedule_buckets AS (
+        SELECT
+            group_schedule::jsonb                           AS sched,
+            jsonb_array_length(group_schedule::jsonb)       AS events_count,
+            COUNT(*)                                        AS groups_count,
+            ARRAY_AGG(group_id ORDER BY group_id)           AS group_ids,
+            ARRAY_AGG(group_info->>'name' ORDER BY group_info->>'name') AS group_names
+        FROM groups
+        WHERE group_schedule IS NOT NULL
+          AND group_schedule <> '[]'
+          AND jsonb_array_length(group_schedule::jsonb) > 0
+        GROUP BY group_schedule
+        HAVING COUNT(*) > 1
+    )
+    SELECT
+        groups_count,
+        events_count,
+        group_ids,
+        group_names
+    FROM schedule_buckets
+    ORDER BY groups_count DESC, events_count DESC;
+    "
+    echo ""
+    echo -e "${YELLOW}Каждая строка — кластер групп с полностью идентичным НЕ пустым расписанием.${NC}"
+    wait_for_user
+}
+
+query_24() {
+    show_header
+    echo -e "${BOLD}🎓 Группы с пустым расписанием${NC}"
+    echo ""
+    # Столбец с ID групп
+    execute_query "
+    SELECT
+        group_id AS id
+    FROM groups
+    WHERE group_schedule IS NOT NULL
+      AND (group_schedule = '[]' OR jsonb_array_length(group_schedule::jsonb) = 0)
+    ORDER BY group_id;
+    "
+    echo ""
+    # Внизу — всего таких групп
+    execute_query "
+    SELECT
+        COUNT(*) AS total_empty_groups
+    FROM groups
+    WHERE group_schedule IS NOT NULL
+      AND (group_schedule = '[]' OR jsonb_array_length(group_schedule::jsonb) = 0);
+    "
+    wait_for_user
+}
+
 # Main loop
 main() {
     while true; do
@@ -514,6 +573,8 @@ main() {
             20) query_20 ;;
             21) query_21 ;;
             22) query_22 ;;
+            23) query_23 ;;
+            24) query_24 ;;
             0)
                 show_header
                 echo -e "${GREEN}Goodbye!${NC}"
