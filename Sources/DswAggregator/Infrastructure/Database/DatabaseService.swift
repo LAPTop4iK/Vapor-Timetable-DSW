@@ -36,6 +36,17 @@ public struct DatabaseService: Sendable {
         let teacherModels = try await TeacherModel.query(on: db).all()
         let teachers = teacherModels.map { $0.toTeacherCard() }
 
+        // Fetch current period teachers (only those in this group)
+        let currentPeriodTeachers: [TeacherCard]?
+        if !groupModel.teacherIds.isEmpty {
+            let currentTeacherModels = try await TeacherModel.query(on: db)
+                .filter(\.$id ~~ groupModel.teacherIds)
+                .all()
+            currentPeriodTeachers = currentTeacherModels.map { $0.toTeacherCard() }
+        } else {
+            currentPeriodTeachers = nil
+        }
+
         let isoFormatter = ISO8601DateFormatter()
         let fetchedAt = groupModel.fetchedAt.map { isoFormatter.string(from: $0) } ?? ""
 
@@ -46,6 +57,7 @@ public struct DatabaseService: Sendable {
             intervalType: groupModel.intervalType,
             groupSchedule: groupSchedule,
             teachers: teachers,
+            currentPeriodTeachers: currentPeriodTeachers,
             fetchedAt: fetchedAt
         )
     }
