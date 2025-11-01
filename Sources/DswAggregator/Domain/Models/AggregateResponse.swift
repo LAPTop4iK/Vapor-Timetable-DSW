@@ -15,6 +15,7 @@ public struct AggregateResponse: Content, Sendable {
     public var intervalType: Int
     public var groupSchedule: [ScheduleEvent]
     public var teachers: [TeacherCard]
+    public var currentPeriodTeachers: [TeacherCard]?
     public var fetchedAt: String
 
     public init(
@@ -24,6 +25,7 @@ public struct AggregateResponse: Content, Sendable {
         intervalType: Int,
         groupSchedule: [ScheduleEvent],
         teachers: [TeacherCard],
+        currentPeriodTeachers: [TeacherCard]? = nil,
         fetchedAt: String
     ) {
         self.groupId = groupId
@@ -32,6 +34,7 @@ public struct AggregateResponse: Content, Sendable {
         self.intervalType = intervalType
         self.groupSchedule = groupSchedule
         self.teachers = teachers
+        self.currentPeriodTeachers = currentPeriodTeachers
         self.fetchedAt = fetchedAt
     }
 }

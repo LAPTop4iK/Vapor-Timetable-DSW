@@ -123,6 +123,7 @@ struct AggregationService: Sendable {
             intervalType: intervalType.rawValue,
             groupSchedule: groupEvents,
             teachers: cards,
+            currentPeriodTeachers: nil, // For live mode, currentPeriodTeachers is nil
             fetchedAt: isoNow
         )
     }
